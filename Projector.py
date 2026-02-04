@@ -127,6 +127,8 @@ class Projector(nn.Module):
         # Log parameters
         total_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
         logger.info(f"Projector has {total_params/1e6:.2f}M params")
+        # print model architecture
+        logger.debug(self)
 
 
     def freeze(self):
