@@ -123,6 +123,7 @@ class Dataset(Dataset):
                 n_empty += 1
                 continue
 
+            tokenizer.padding_side = "right"
             toks = tokenizer(
                 target, 
                 return_tensors="pt", 
