@@ -117,7 +117,7 @@ class Dataset(Dataset):
         n_maxlen = 0
         self.samples = []
         for idx, sample in enumerate(samples):
-            target = sample.get("asr", "")
+            target = sample.get("transcription",{}).get("text", "")
             if not target:
                 logger.warning(f"Skipping empty target for sample idx={idx}")
                 n_empty += 1
