@@ -178,8 +178,8 @@ if __name__ == "__main__":
     with open(args.config, "r", encoding="utf-8") as file:
         config = json.load(file)
 
-    llm_path = config['llm']['path']
     audio_path = config['audio']['path']
+    llm_path = config['llm']['path']
 
     # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
