@@ -126,11 +126,11 @@ class Dataset(Dataset):
             toks = tokenizer(
                 target, 
                 return_tensors="pt", 
-                padding=True, 
+                padding="max_length", 
+                max_length=seq_len,
                 truncation=False, 
-                add_special_tokens=False, 
+                # add_special_tokens=False, 
                 # pad_token=tokenizer.pad_token,
-                padded_length=seq_len,
                 return_attention_mask=True,
             )
 
