@@ -1,6 +1,7 @@
 # Dataset.py
 
 import os
+import random
 import json
 #import torch
 import logging
@@ -44,7 +45,7 @@ class BatchedBucketSampler(BatchSampler):
         # shuffle pt_paths (buckets)
         pt_paths = list(pt_path2idxs.keys())
         if self.shuffle:
-            self.shuffle(pt_paths)
+            random.shuffle(pt_paths)
             logger.info(f"Shuffled {len(pt_paths)} pt_paths (buckets) for batching")
 
         # build batches using indices of same pt_path (bucket)
