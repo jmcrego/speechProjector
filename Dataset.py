@@ -202,7 +202,9 @@ if __name__ == "__main__":
         for idx in batch:
             sample = ds[idx]
             target_ids = sample["target_ids"]
+            masks = sample["attention_mask"]
+            pt_path = sample["pt_path"]
             duration = sample["duration"]
             # for each ids in target_ids build the tuple (ids, token_str)
             target = [(ids.item(), tokenizer.decode(ids)) for ids in target_ids]
-            print(f"\tidx={idx}, duration={duration:.2f}, target={target}")
+            print(f"\tidx={idx}\n\tduration={duration:.2f}\n\ttarget={target}\n\ymasks={masks.tolist()}\n\tpt_path={pt_path}\n")
