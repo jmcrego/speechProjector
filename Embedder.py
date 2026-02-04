@@ -37,7 +37,6 @@ class Embedder(nn.Module):
         # print model architecture
         logger.debug(self)
 
-
     def freeze(self):
         self.eval()
         for p in self.parameters():
@@ -91,6 +90,7 @@ if __name__ == "__main__":
     import argparse
     import time
     import json
+    
     parser = argparse.ArgumentParser(description="Extract audio embeddings from file or array.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--config", type=str, required=True, help="Config file")
     parser.add_argument("--audio_files", type=str, help="Comma separated list of audio files")

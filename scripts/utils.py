@@ -1,8 +1,43 @@
 #!/usr/bin/env python3
 
+import json
+from pathlib import Path
+from datetime import datetime
+import torch
 import soxr
 import numpy as np
 import soundfile as sf
+
+class JSONMetricsLogger:
+    def __init__(self, path):
+        self.path = Path(path)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+
+    def log(self, **data):
+        data["timestamp"] = datetime.now().isoformat(timespec="seconds")
+        with self.path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(data, ensure_ascii=False) + "\n")
+
+def get_device_dtype():
+    if torch.cuda.is_available():
+        device = torch.device("cuda")  # picks default CUDA device
+        try:
+            props = torch.cuda.get_device_properties(device)
+            name = props.name.lower()
+            if "h100" in name:
+                dtype = torch.bfloat16
+            elif "a100" in name:
+                dtype = torch.bfloat16  # optional, you could also use fp16
+            else:  # V100, T4, etc.
+                dtype = torch.float16
+        except Exception:
+            dtype = torch.float16
+    else:
+        device = torch.device("cpu")
+        dtype = torch.float32
+    dtype = torch.float32
+    return device, dtype    
+
 
 def preprocess_audio(audio_input, sample_rate=None, channel=-1, norm=True):
     """

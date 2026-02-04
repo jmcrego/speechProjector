@@ -39,6 +39,7 @@ class Projector(nn.Module):
         use_bias = config.get('use_bias', False)
 
         assert 1500 % conv_stride == 0, f"conv_stride={conv_stride} must divide audio frames (1500) or frames will be dropped"
+        self.seq_len_out = 1500 // conv_stride
 
        # --- Pre RMSNorm ---
         self.ln_pre = nn.RMSNorm(audio_embedding_dim) if rmsnorm_pre else nn.Identity() #(B, T, A) → (B, T, A)
@@ -196,6 +197,7 @@ class Projector(nn.Module):
 if __name__ == "__main__":
     import json
     import argparse
+    from transformers import AutoConfig, AutoTokenizer
     from Embedder import Embedder
 
     parser = argparse.ArgumentParser(description="Test Projector using an Embedder.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -208,11 +210,17 @@ if __name__ == "__main__":
     with open(args.config, "r", encoding="utf-8") as file:
         config = json.load(file)
 
+    llm_path = config['llm']['path']
+    audio_path = config['audio']['path']
+    tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
+    audio_embedding_dim = AutoConfig.from_pretrained(audio_path).d_model
+    llm_embedding_dim = AutoConfig.from_pretrained(llm_path).d_model
+
     embedder = Embedder(config=config['audio'])
-    projector = Projector(config=config['projector'], audio_embedding_dim=embedder.embedding_dim, llm_embedding_dim=2048)
+    projector = Projector(config=config['projector'], audio_embedding_dim=audio_embedding_dim, llm_embedding_dim=llm_embedding_dim)
 
-    # embed, masks = embedder(args.audio_files.split(","))  # embeddings: [B, T, D], masks: [B, T]
-    # proj_embed, proj_masks = projector(embed)
+    embed, masks = embedder(args.audio_files.split(","))
+    proj_embed, proj_masks = projector(embed)
 
-    # print("Projected LLM embeddings shape:", proj_embed.shape)
-    # print("Superframe mask shape:", proj_masks.shape)
+    print("Projected LLM embeddings shape:", proj_embed.shape)
+    print("Superframe mask shape:", proj_masks.shape)
