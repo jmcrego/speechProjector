@@ -130,7 +130,7 @@ class Dataset(Dataset):
                 padding="max_length", 
                 max_length=seq_len,
                 truncation=False, 
-                # add_special_tokens=False, 
+                add_special_tokens=False, 
                 # pad_token=tokenizer.pad_token,
                 return_attention_mask=True,
             )
