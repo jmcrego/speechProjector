@@ -126,7 +126,7 @@ class Projector(nn.Module):
 
         # Log parameters
         total_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
-        logger.info(f"Initialized Projector with {total_params/1e6:.2f}M params")
+        logger.info(f"Projector has {total_params/1e6:.2f}M params")
 
 
     def freeze(self):
@@ -180,9 +180,12 @@ class Projector(nn.Module):
             x = x * self.scale            
         if self.bias is not None:
             x = x + self.bias
+        logger.debug(f"Projector embed: {x.shape}")
+
         T_out = x.size(1)
         # Mask: all frames are valid
         mask = torch.ones(B, T_out, dtype=torch.bool, device=x.device)
+        logger.debug(f"Projector masks: {mask.shape}")
 
         return x, mask
 
@@ -207,11 +210,7 @@ if __name__ == "__main__":
     projector = Projector(config=config['projector'], audio_embedding_dim=embedder.embedding_dim, llm_embedding_dim=2048)
 
     embed, masks = embedder(args.audio_files.split(","))  # embeddings: [B, T, D], masks: [B, T]
-    print("Embeddings shape:", embed.shape)
-    print("Masks shape:", masks.shape)
-
     proj_embed, proj_masks = projector(embed)
 
     print("Projected LLM embeddings shape:", proj_embed.shape)
     print("Superframe mask shape:", proj_masks.shape)
-    print("Superframe mask:", proj_masks)
