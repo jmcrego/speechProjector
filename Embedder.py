@@ -67,7 +67,7 @@ class Embedder(nn.Module):
         feat = self.feature_extractor(preprocessed, sampling_rate=self.sample_rate, return_tensors="pt")
         inputs = feat.input_features.to(device, dtype=torch.float32) #[B, n_mels, T_frames]
 
-        logger.debug(f"Audio inputs to encoder: {inputs.shape}, dtype={inputs.dtype}")
+        logger.debug(f"Audio feats: {inputs.shape}, dtype={inputs.dtype}")
 
         # ====================================================
         # 3. Encoder forward
@@ -75,7 +75,7 @@ class Embedder(nn.Module):
         with torch.no_grad():
             frames = self.embedder(inputs).last_hidden_state # [B, T_frames=1500, D]
 
-        logger.debug(f"Frame embeddings: {frames.shape}")
+        logger.debug(f"Audio embed: {frames.shape}")
 
         # ====================================================
         # 4. Frame-level mask 
@@ -83,7 +83,7 @@ class Embedder(nn.Module):
         # Whisper encoder outputs are always dense (no mask needed; all valild)
         frames_mask = torch.ones(frames.shape[:2], dtype=torch.bool, device=device) # [B, T_frames=1500]
 
-        logger.debug(f"Frame mask: {frames_mask.shape}")
+        logger.debug(f"Audio masks: {frames_mask.shape}")
 
         return frames, frames_mask
 
