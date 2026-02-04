@@ -27,39 +27,36 @@ class BatchedBucketSampler(BatchSampler):
         Once batches are built, they are shuffled if shuffle=True (default) or kept in order if shuffle=False.
         """
         self.dataset = dataset
+        self.bucket_size = dataset.info['bucket_size']
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.size2n = defaultdict(int) # dict to keep track of number of batches with n samples (for logging)
 
         assert dataset.info['bucket_size'] % batch_size == 0, f"Bucket size ({dataset.info['bucket_size']}) must be divisible by batch size ({batch_size}) to maximize batches containing samples from the same bucket (pt_path)."
 
-        # Build batches of indices with same pt_path
-        self.batches = []
-        current_batch = []
-        current_pt_path = None # keep track of current pt_path (audio bucket) for batching
+        # Build indices of same bucket together (indices of samples with same pt_path)
+        pt_path2idxs = defaultdict(list)
         for idx, sample in enumerate(self.dataset):
             pt_path = sample["pt_path"]
-            if current_pt_path is None:
-                current_pt_path = pt_path
+            pt_path2idxs[pt_path].append(idx)
+        logger.info(f"Grouped {len(self.dataset)} samples into {len(pt_path2idxs)} buckets (pt_paths)")
 
-            if pt_path != current_pt_path or len(current_batch) >= self.batch_size:
-                self.batches.append(current_batch)
-                self.size2n[len(current_batch)] += 1
-                current_batch = []
-                current_pt_path = pt_path
+        # shuffle pt_paths (buckets)
+        pt_paths = list(pt_path2idxs.keys())
+        if self.shuffle:
+            self.shuffle(pt_paths)
+            logger.info(f"Shuffled {len(pt_paths)} pt_paths (buckets) for batching")
 
-            current_batch.append(idx)
-
-        # Add last batch if not empty
-        if len(current_batch) > 0:
-            self.batches.append(current_batch)
-            self.size2n[len(current_batch)] += 1
-
-        # Shuffle batches if needed
-        if shuffle:
-            np.random.shuffle(self.batches)
-
-        logger.info(f"Built {len(self.batches)} batches with max batch_size={self.batch_size} and shuffle={self.shuffle}")
+        # build batches using indices of same pt_path (bucket)
+        self.batches = []
+        for pt_path in pt_paths:
+            idxs = pt_path2idxs[pt_path]
+            # split idxs into batches of batch_size
+            for i in range(0, len(idxs), self.batch_size):
+                batch = idxs[i:i+self.batch_size]
+                self.batches.append(batch)
+                self.size2n[len(batch)] += 1
+        logger.info(f"Created {len(self.batches)} batches with batch_size={self.batch_size}")
         logger.info(f"Batch size distribution: {dict(self.size2n)}")
 
     def __iter__(self):
