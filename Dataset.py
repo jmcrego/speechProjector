@@ -116,7 +116,7 @@ class Dataset(Dataset):
         for idx, sample in enumerate(samples):
             target = sample.get("transcription",{}).get("text", "")
             if not target:
-                logger.warning(f"Skipping empty target for sample idx={idx}")
+                logger.warning(f"Skipping empty transcription->text field for sample idx={idx}")
                 n_empty += 1
                 continue
 
