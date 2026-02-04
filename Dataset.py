@@ -129,7 +129,7 @@ class Dataset(Dataset):
                 padding=True, 
                 truncation=False, 
                 add_special_tokens=False, 
-                pad_token=tokenizer.pad_token,
+                # pad_token=tokenizer.pad_token,
                 padded_length=seq_len,
                 return_attention_mask=True,
             )
@@ -170,7 +170,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Test Dataset loading and batching.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--config", type=str, required=True, help="Model config file")
-    parser.add_argument("--dataset", required=True, help="Dataset file")
+    parser.add_argument("--data_file", required=True, help="Dataset file")
     parser.add_argument("--seq_len", type=int, default=1500 // 15, help="Projector audio emnbedding sequence length")
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size for sampling")
     args = parser.parse_args()
@@ -190,7 +190,7 @@ if __name__ == "__main__":
 
 
     # Create dataset from file
-    ds = Dataset(file_path=args.dataset, tokenizer=tokenizer, seq_len=args.seq_len)
+    ds = Dataset(file_path=args.data_file, tokenizer=tokenizer, seq_len=args.seq_len)
 
     # Create sampler from datset
     sampler = BatchedBucketSampler(ds, batch_size=args.batch_size, shuffle=True)
