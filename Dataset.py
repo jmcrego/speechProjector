@@ -1,6 +1,7 @@
 # Dataset.py
 
 import json
+import torch
 import random
 import logging
 import numpy as np
@@ -9,6 +10,26 @@ from collections import defaultdict
 from torch.utils.data import Dataset, BatchSampler
 
 logger = logging.getLogger("Dataset")
+
+def collate_fn(batch):
+    def ensure_tensor(x):
+        return x.detach().clone() if isinstance(x, torch.Tensor) else torch.tensor(x, dtype=torch.long)
+
+    assert "target_ids" in batch[0] and "attention_mask" in batch[0]
+    target_ids = ensure_tensor([x["target_ids"] for x in batch])  # (B, T) dtype=torch.long
+    attention_mask = ensure_tensor([x["attention_mask"] for x in batch])  # (B, T) dtype=torch.long
+
+    assert "pt_path" in batch[0] and "offset" in batch[0]
+    pt_paths = [x["pt_path"] for x in batch]
+    offsets = torch.tensor([x["offset"] for x in batch], dtype=torch.long)
+
+    return {
+        "pt_paths": pt_paths,         # List[str] (B,)
+        "offsets": offsets,           # (B,)
+        "target_ids": target_ids,     # (B, T)
+        "attention_mask": attention_mask, # (B, T)
+    }
+
 
 class BatchedBucketSampler(BatchSampler):
     def __init__(self, dataset, batch_size=4, shuffle=True):
@@ -164,8 +185,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Test Dataset loading and batching.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--config", type=str, required=True, help="Model config file")
     parser.add_argument("--data_file", required=True, help="Dataset file")
-    parser.add_argument("--seq_len", type=int, default=1500 // 15, help="Projector audio emnbedding sequence length")
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size for sampling")
+    parser.add_argument("--seq_len", type=int, default=1500 // 15, help="Projector audio emnbedding sequence length")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.DEBUG, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])

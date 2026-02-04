@@ -8,9 +8,6 @@ import torch
 import shutil
 import random
 import logging
-import sacrebleu
-import jiwer
-import unicodedata
 import numpy as np
 from datetime import datetime
 import time
@@ -22,35 +19,10 @@ from torch.nn.utils.rnn import pad_sequence
 from transformers import get_linear_schedule_with_warmup
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 
-from Dataset import BatchedLengthSampler
+from Dataset import BatchedBucketSampler, collate_fn
 
 logger = logging.getLogger("Trainer")
 
-class UnicodeNormalize(jiwer.AbstractTransform):
-    def process_string(self, s: str):
-        return unicodedata.normalize("NFKC", s)
-
-class RemoveTags(jiwer.AbstractTransform):
-    def process_string(self, s: str):
-        # handles nested brackets, empty tags                                                                                                                                                                                                                                    
-        s = re.sub(r"\<[^>]*\>", "", s)  # Remove <anything>                                                                                                                                                                                                                                  
-        s = re.sub(r"\[[^\]]*\]", "", s)  # Remove [anything]                                                                                                                                                                                                                                 
-        return s
-    
-class NormalizeApostrophes(jiwer.AbstractTransform):
-    def process_string(self, s: str):
-        return re.sub(r"[’']", " ", s) # Handle straight and curly apostrophes (do not delete the space as it does RemovePunctuation)
-
-transform = jiwer.Compose([ 
-    UnicodeNormalize(), 
-    RemoveTags(), 
-    jiwer.ToLowerCase(), 
-    NormalizeApostrophes(),
-    jiwer.RemovePunctuation(), 
-    jiwer.RemoveWhiteSpace(replace_by_space=True), 
-    jiwer.Strip(), 
-    jiwer.RemoveEmptyStrings() 
-])
 
 def compute_grad_norm(params, eps=1e-6):
     """
@@ -75,7 +47,6 @@ class Trainer:
         eval_dataset=None,
         batch_size=4,
         lr_proj=5e-4,
-        lr_lora=1e-4,
         max_steps=10000,
         max_epochs=10,
         warmup_steps=0,
@@ -100,7 +71,6 @@ class Trainer:
         self.eval_dataset = eval_dataset
         self.batch_size = batch_size
         self.lr_proj = lr_proj
-        self.lr_lora = lr_lora
         self.max_steps = max_steps
         self.max_epochs = max_epochs
         self.warmup_steps = warmup_steps
@@ -110,28 +80,25 @@ class Trainer:
         self.accum_steps = accum_steps
         self.output_dir = output_dir
         self.json_logger = json_logger
-        self.tokenizer = self.model.llm.tokenizer
         os.makedirs(output_dir, exist_ok=True)
 
+        self.tokenizer = self.model.llm.tokenizer
 
         param = next(self.model.llm.model.parameters())
         self.device = param.device
         self.dtype = param.dtype
 
-        train_batch_size = batch_size
-        eval_batch_size = 1
-
         # -----------------------
         # Sampler & DataLoader
         # -----------------------
         
-        self.train_sampler = BatchedLengthSampler(train_dataset, batch_size=train_batch_size, shuffle=not train_dataset.is_cached)
-        self.train_loader = DataLoader(train_dataset, batch_sampler=self.train_sampler, collate_fn=self.collate_fn)
-        logger.info(f"Initialized Sampler and DataLoader for train with batch_size={train_batch_size} with {len(self.train_dataset)} samples")
+        self.train_sampler = BatchedBucketSampler(train_dataset, batch_size=batch_size, shuffle=not train_dataset.is_cached)
+        self.train_loader = DataLoader(train_dataset, batch_sampler=self.train_sampler, collate_fn=collate_fn)
+        logger.info(f"Initialized Sampler and DataLoader for train with batch_size={batch_size} with {len(self.train_dataset)} samples")
 
-        self.eval_sampler = BatchedLengthSampler(eval_dataset, batch_size=eval_batch_size, shuffle=not train_dataset.is_cached)
-        self.eval_loader = DataLoader(eval_dataset, batch_sampler=self.eval_sampler, collate_fn=self.collate_fn)
-        logger.info(f"Initialized Sampler and DataLoader for eval with batch_size={eval_batch_size} with {len(self.eval_dataset)} samples")
+        self.eval_sampler = BatchedBucketSampler(eval_dataset, batch_size=batch_size, shuffle=not train_dataset.is_cached)
+        self.eval_loader = DataLoader(eval_dataset, batch_sampler=self.eval_sampler, collate_fn=collate_fn)
+        logger.info(f"Initialized Sampler and DataLoader for eval with batch_size={batch_size} with {len(self.eval_dataset)} samples")
 
         if max_epochs:
             self.max_steps = min(self.max_steps, int(len(train_dataset) / (batch_size * accum_steps)))
@@ -201,33 +168,6 @@ class Trainer:
 
         # remove older checkpoints, keep only top N
         remove_old_checkpoints(step, self.output_dir, prefix, self.save_best_n)
-
-    # -----------------------
-    # Collator function
-    # -----------------------
-    def collate_fn(self, batch):
-        pad_token_id = self.tokenizer.pad_token_id
-        audio_paths = [x["audio_path"] for x in batch]
-        def ensure_tensor(x):
-            return x.detach().clone() if isinstance(x, torch.Tensor) else torch.tensor(x, dtype=torch.long)
-        prompt_ids = pad_sequence([ensure_tensor(x["prompt_ids"]) for x in batch], batch_first=True, padding_value=pad_token_id)
-        target_ids = pad_sequence([ensure_tensor(x["target_ids"]) for x in batch], batch_first=True, padding_value=pad_token_id)
-
-        has_audio_cache = "pt_path" in batch[0] and "offset" in batch[0]
-        if has_audio_cache:
-            pt_paths = [x["pt_path"] for x in batch]
-            offsets = torch.tensor([x["offset"] for x in batch], dtype=torch.long)
-        else:
-            pt_paths = None
-            offsets = None
-
-        return {
-            "audio_paths": audio_paths,
-            "pt_paths": pt_paths,         # List[str]
-            "offsets": offsets,           # (B,)
-            "prompt_ids": prompt_ids,
-            "target_ids": target_ids
-        }
 
     # -----------------------
     # Training loop
@@ -367,29 +307,16 @@ class Trainer:
     @torch.no_grad()
     def evaluate(
         self,
-        max_new_tokens=256,
-        temperature=0.0,
-        top_p=1.0,
-        no_repeat_ngram_size = 0,
-        repetition_penalty = 1.1,
     ):
         """
         Evaluation with:
         1) standard forward loss
-        2) autoregressive generation for qualitative inspection
         """
         self.model.eval()
 
         total_loss = 0.0
         n_batches = 0
-
-        logged_samples = 0
-
-        predictions = []
-        references = []
         
-        tic = time.time()
-
         for batch in self.eval_loader:
             # ----------------------------
             # Move tensors to device
@@ -400,7 +327,7 @@ class Trainer:
             }
 
             # ----------------------------
-            # 1) Forward pass (loss)
+            # Forward pass (loss)
             # ----------------------------
             with torch.amp.autocast(
                 device_type="cuda",
@@ -413,50 +340,11 @@ class Trainer:
             total_loss += loss
             n_batches += 1
 
-            # ----------------------------
-            # 2) Generation
-            # ----------------------------
-            audio_paths = batch["audio_paths"]
-            prompt_ids = batch["prompt_ids"]
-            target_ids = batch["target_ids"]
-
-            # Run generation
-            gen_texts = self.model.generate(
-                audio_paths=audio_paths,
-                prompt_ids=prompt_ids,
-                max_new_tokens=max_new_tokens,
-                temperature=temperature,
-                top_p=top_p,
-                no_repeat_ngram_size = no_repeat_ngram_size,
-                repetition_penalty = repetition_penalty,
-            )
-
-            # Decode prompt text (for logging only)
-            prompt_texts = self.tokenizer.batch_decode(prompt_ids, skip_special_tokens=False)
-            # Decode targets (ground truth)
-            target_texts = self.tokenizer.batch_decode(target_ids, skip_special_tokens=False)
-
-            predictions.extend(gen_texts)
-            references.extend(target_texts)
-
-            for i in range(len(audio_paths)):
-                logger.info(f"[Eval sample {logged_samples}]")
-                logger.info(f"AUDIO: {audio_paths[i]}")
-                logger.info(f"PROMPT: {prompt_texts[i].replace("\n","↵")}")
-                logger.info(f"TARGET: {target_texts[i].replace("\n","↵")}")
-                logger.info(f"PREDIC: {gen_texts[i].replace("\n","↵")}")
-                logger.info("=" * 80)
-
-                logged_samples += 1
-
-        bleu_score, wer_score, cer_score, acc = eval_test_set(references, predictions, self.tokenizer.eos_token)
         avg_loss = total_loss / max(1, n_batches)
 
         # valid log
-        self.log_fn(avg_loss, is_eval=True, bleu=bleu_score, wer=wer_score, cer=cer_score, acc=acc) 
-        self.json_logger.log(type="eval", step=self.step, loss=avg_loss, bleu=bleu_score, wer=wer_score, cer=cer_score, acc=acc)                        
-
-        logger.info(f"Generation took {time.time()-tic:.2f}s for {len(predictions)} samples")
+        self.log_fn(avg_loss, is_eval=True) 
+        self.json_logger.log(type="eval", step=self.step, loss=avg_loss)                        
 
         self.model.train()
         return avg_loss
@@ -487,14 +375,6 @@ class Trainer:
             log_str += f"‖audio‖={audio_norm:.2f} | "
         if text_norm is not None:
             log_str += f"‖text‖={text_norm:.2f} | "
-        if bleu is not None:
-            log_str += f"bleu={bleu:.2f} | "
-        if wer is not None:
-            log_str += f"wer={wer:.2f} | "
-        if cer is not None:
-            log_str += f"cer={cer:.2f} | "
-        if acc is not None:
-            log_str += f"acc={acc:.2f} | " #lang tag accuracy
         if total_samples:
             log_str += f"pads_per_sample={total_pads/total_samples:.2f} | "
         
@@ -538,113 +418,5 @@ def remove_old_checkpoints(step, output_dir, prefix, save_best_n):
                     os.remove(path)
         except Exception as e:
             print(f"Error removing old checkpoint {old_ckpt_path}: {e}")
-
-
-def eval_test_set(references, predictions, eos_token):
-    # get initial lang tag
-    hyp_lang = [re.match(r"^(<[^>]+>)", x).group(1) if re.match(r"^(<[^>]+>)", x) else None for x in predictions]
-    ref_lang = [re.match(r"^(<[^>]+>)", x).group(1) if re.match(r"^(<[^>]+>)", x) else None for x in references]
-
-    # remove ending </s>
-    predictions = [x.replace(eos_token, "").strip() for x in predictions]
-    references = [x.replace(eos_token, "").strip() for x in references]
-
-    # remove initial lang tag
-    predictions = [re.sub(r"^<[^>]+>\s*", "", x) for x in predictions]
-    references = [re.sub(r"^<[^>]+>\s*", "", x) for x in references]
-
-    bleu_score = sacrebleu.corpus_bleu(predictions, [references]).score
-
-    # Pre-transform both
-    # refs_transformed = transform(references)
-    # hyps_transformed = transform(predictions)
-    refs_transformed = [ transform(x) or "EMPTY" for x in references]
-    hyps_transformed = [ transform(x) or "EMPTY" for x in predictions]
-
-    # def transform_one(x):
-    #     out = transform([x])
-    #     return out[0] if out else "EMPTY"
-
-    # refs_transformed = [ transform_one(x) for x in references ]
-    # hyps_transformed = [ transform_one(x) for x in predictions ]
-
-    if len(refs_transformed) != len(hyps_transformed):
-        logger.info(f"Reference / hypothesis length mismatch after transform {len(refs_transformed)} != {len(hyps_transformed)}")
-        return bleu_score, 0., 0., 0.
-
-
-    # Word-level metrics                                                                                                                                                                                                                                                                          
-    word_output = jiwer.process_words(refs_transformed, hyps_transformed)
-    logger.info("\n" + jiwer.visualize_alignment(word_output, show_measures=True))
-    logger.info(f"WER: {word_output.wer:.4f}")
-
-    # Character-level metrics                                                                                                                                                                                                                                                                     
-    char_output = jiwer.process_characters(refs_transformed, hyps_transformed)
-    logger.info(f"CER: {char_output.cer:.4f}")
-
-    lang_acc = evaluate_lang_tags(hyp_lang, ref_lang)
-
-    return bleu_score, 100*word_output.wer, 100*char_output.cer, lang_acc
-
-
-def evaluate_lang_tags(hyp_lang, ref_lang):
-    """
-    Evaluate language tag predictions
-    
-    Args:
-        hyp_lang: List of predicted language tags (can contain None)
-        ref_lang: List of reference language tags (can contain None)
-    """
-    # Filter out None values
-    valid_pairs = [(h, r) for h, r in zip(hyp_lang, ref_lang) if h is not None and r is not None]
-    
-    if not valid_pairs:
-        logger.info("=" * 70)
-        logger.info("LANGUAGE TAG EVALUATION")
-        logger.info("=" * 70)
-        logger.info(f"Total samples: {len(hyp_lang)}")
-        logger.info(f"Missing reference tags: {sum(1 for x in ref_lang if x is None)}")
-        logger.info(f"Missing hypothesis tags: {sum(1 for x in hyp_lang if x is None)}")
-        logger.info("ERROR: No valid language tag pairs found")
-        logger.info("=" * 70)
-        return
-    
-    hyp_valid = [h for h, r in valid_pairs]
-    ref_valid = [r for h, r in valid_pairs]
-    
-    # Calculate accuracy
-    accuracy = accuracy_score(ref_valid, hyp_valid)
-    
-    # Get unique labels
-    labels = sorted(list(set(ref_valid + hyp_valid)))
-    
-    # Confusion matrix
-    cm = confusion_matrix(ref_valid, hyp_valid, labels=labels)
-    
-    # Print report
-    logger.info("=" * 70)
-    logger.info("LANGUAGE TAG EVALUATION")
-    logger.info("=" * 70)
-    logger.info(f"\nDataset Statistics:")
-    logger.info(f"  Total samples: {len(hyp_lang)}")
-    logger.info(f"  Valid pairs: {len(valid_pairs)}")
-    logger.info(f"  Missing reference tags: {sum(1 for x in ref_lang if x is None)}")
-    logger.info(f"  Missing hypothesis tags: {sum(1 for x in hyp_lang if x is None)}")
-    
-    logger.info(f"\nOverall Accuracy: {accuracy:.4f} ({accuracy*100:.2f}%)")
-    
-    logger.info(f"\nDetailed Classification Report:")
-    logger.info("\n" + classification_report(ref_valid, hyp_valid, labels=labels, zero_division=0))
-    
-    logger.info("Confusion Matrix:")
-    header = "Ref \ Pred" + "".join(f"{label:>10}" for label in labels)
-    logger.info(header)
-    logger.info("-" * (10 + 10 * len(labels)))
-    for i, label in enumerate(labels):
-        row = f"{label:>10}" + "".join(f"{cm[i][j]:>10}" for j in range(len(labels)))
-        logger.info(row)
-    logger.info("=" * 70)
-    return accuracy
-
 
 
