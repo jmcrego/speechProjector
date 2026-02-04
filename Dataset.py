@@ -207,4 +207,4 @@ if __name__ == "__main__":
             duration = sample["duration"]
             # for each ids in target_ids build the tuple (ids, token_str)
             target = [(ids.item(), tokenizer.decode(ids)) for ids in target_ids]
-            print(f"\tidx={idx}\n\tduration={duration:.2f}\n\ttarget={target}\n\ymasks={masks.tolist()}\n\tpt_path={pt_path}\n")
+            print(f"\tidx={idx}\n\tduration={duration:.2f}\n\ttarget={target}\n\tmasks={masks.tolist()}\n\tpt_path={pt_path}\n")
