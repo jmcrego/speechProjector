@@ -15,7 +15,6 @@ logger = logging.getLogger("Embedder")
 class Embedder(nn.Module):
     """
     Audio → frame embeddings extractor.
-
     Output:
       frames: [B, T_frames, D]   float32
       mask:   [B, T_frames]      bool (True = valid frame)
@@ -27,14 +26,14 @@ class Embedder(nn.Module):
         self.path = config["path"]
 
         # ----------------------------------------------------
-        # Load backbone
+        # Load speech embedder
         # ----------------------------------------------------
         logger.debug(f"Loading whisper")
         self.feature_extractor = WhisperFeatureExtractor.from_pretrained(self.path)
         whisper = WhisperModel.from_pretrained(self.path)
         self.embedder = whisper.encoder
         del whisper.decoder  # free decoder weights
-        torch.cuda.empty_cache()  # optional
+        torch.cuda.empty_cache()
         self.embedding_dim = self.embedder.config.d_model
         self.sample_rate = self.feature_extractor.sampling_rate        
         logger.info(f"Loaded {self.path} | embedding_dim={self.embedding_dim} | sample_rate={self.sample_rate}")
