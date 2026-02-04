@@ -211,8 +211,8 @@ if __name__ == "__main__":
     embedder = Embedder(config=config['audio'])
     projector = Projector(config=config['projector'], audio_embedding_dim=embedder.embedding_dim, llm_embedding_dim=2048)
 
-    embed, masks = embedder(args.audio_files.split(","))  # embeddings: [B, T, D], masks: [B, T]
-    proj_embed, proj_masks = projector(embed)
+    # embed, masks = embedder(args.audio_files.split(","))  # embeddings: [B, T, D], masks: [B, T]
+    # proj_embed, proj_masks = projector(embed)
 
-    print("Projected LLM embeddings shape:", proj_embed.shape)
-    print("Superframe mask shape:", proj_masks.shape)
+    # print("Projected LLM embeddings shape:", proj_embed.shape)
+    # print("Superframe mask shape:", proj_masks.shape)
