@@ -131,7 +131,6 @@ class Dataset(Dataset):
                 max_length=seq_len,
                 truncation=False, 
                 add_special_tokens=False, 
-                # pad_token=tokenizer.pad_token,
                 return_attention_mask=True,
             )
 
@@ -186,9 +185,11 @@ if __name__ == "__main__":
 
     # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
+    if tokenizer.pad_token is None:
+        raise ValueError("""Tokenizer does not have a PAD token defined (use an LLM with defined pad_token).\nDuring pretraining, the model forces audio embeddings to match text embeddings. Due to length mismatch between audio frames and text tokens, PAD tokens are used to fill the remaining length of transcriptions. During inference, the LLM ignores PAD tokens without additional processing.""")
+
     audio_embedding_dim = AutoConfig.from_pretrained(audio_path).d_model
     llm_embedding_dim = AutoConfig.from_pretrained(llm_path).hidden_size
-
 
     # Create dataset from file
     ds = Dataset(file_path=args.data_file, tokenizer=tokenizer, seq_len=args.seq_len)
