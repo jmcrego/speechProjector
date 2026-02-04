@@ -89,7 +89,7 @@ if __name__ == "__main__":
     audio_path = config['audio']['path']
     tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
     audio_embedding_dim = AutoConfig.from_pretrained(audio_path).d_model
-    llm_embedding_dim = AutoConfig.from_pretrained(llm_path).d_model
+    llm_embedding_dim = AutoConfig.from_pretrained(llm_path).hidden_size
 
     logger.info(f"Loaded Tokenizer from {llm_path}")
     logger.info(f"bos_token = {tokenizer.bos_token} {tokenizer.bos_token_id}")

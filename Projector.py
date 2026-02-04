@@ -214,7 +214,7 @@ if __name__ == "__main__":
     audio_path = config['audio']['path']
     tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
     audio_embedding_dim = AutoConfig.from_pretrained(audio_path).d_model
-    llm_embedding_dim = AutoConfig.from_pretrained(llm_path).d_model
+    llm_embedding_dim = AutoConfig.from_pretrained(llm_path).hidden_size
 
     embedder = Embedder(config=config['audio'])
     projector = Projector(config=config['projector'], audio_embedding_dim=audio_embedding_dim, llm_embedding_dim=llm_embedding_dim)

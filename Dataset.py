@@ -186,7 +186,7 @@ if __name__ == "__main__":
     # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained(llm_path, use_fast=True)
     audio_embedding_dim = AutoConfig.from_pretrained(audio_path).d_model
-    llm_embedding_dim = AutoConfig.from_pretrained(llm_path).d_model
+    llm_embedding_dim = AutoConfig.from_pretrained(llm_path).hidden_size
 
 
     # Create dataset from file
