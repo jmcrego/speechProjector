@@ -9,7 +9,7 @@ from tqdm import tqdm
 #import soundfile as sf
 from pathlib import Path
 from collections import defaultdict
-from typing import Iterator, List, Dict, Optional
+# from typing import Iterator, List, Dict, Optional
 from torch.utils.data import Dataset, BatchSampler
 
 logger = logging.getLogger("Dataset")
@@ -165,7 +165,6 @@ class Dataset(Dataset):
 
 
 if __name__ == "__main__":
-    import sys
     from transformers import AutoTokenizer, AutoConfig
     import argparse
 
