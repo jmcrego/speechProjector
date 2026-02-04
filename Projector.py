@@ -126,7 +126,7 @@ class Projector(nn.Module):
 
         # Log parameters
         total_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
-        logger.info(f"Initialized AudioProjector with {total_params/1e6:.2f}M params")
+        logger.info(f"Initialized Projector with {total_params/1e6:.2f}M params")
 
 
     def freeze(self):
@@ -210,8 +210,8 @@ if __name__ == "__main__":
     print("Embeddings shape:", embed.shape)
     print("Masks shape:", masks.shape)
 
-    proj_embed, proj_mask = projector(embed, masks)
+    proj_embed, proj_masks = projector(embed)
 
     print("Projected LLM embeddings shape:", proj_embed.shape)
-    print("Superframe mask shape:", proj_mask.shape)
-    print("Superframe mask:", proj_mask)
+    print("Superframe mask shape:", proj_masks.shape)
+    print("Superframe mask:", proj_masks)
