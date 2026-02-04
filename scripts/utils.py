@@ -8,7 +8,6 @@ import soxr
 import numpy as np
 import soundfile as sf
 
-
 def preprocess_audio(audio_input, sample_rate=None, channel=-1, norm=True):
     """
     Load audio from:
