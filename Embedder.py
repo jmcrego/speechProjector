@@ -34,6 +34,8 @@ class Embedder(nn.Module):
         self.embedding_dim = self.embedder.config.d_model
         self.sample_rate = self.feature_extractor.sampling_rate        
         logger.info(f"Loaded {self.path} | embedding_dim={self.embedding_dim} | sample_rate={self.sample_rate}")
+        # print model architecture
+        logger.debug(self)
 
 
     def freeze(self):
