@@ -112,7 +112,7 @@ class AudioLLM(torch.nn.Module):
             dim=-1
         ) #same vectors → cos=1, orthogonal → cos=0, opposite → cos=-1
 
-        loss_mse = self.alpha * loss_mse_txt + (10 - self.alpha) * loss_mse_pad 
+        loss_mse = self.alpha * loss_mse_txt + (10 - self.alpha) * loss_mse_pad # balance between aligning tokens and pad tokens
 
         loss_cos = 1.0 - cos.mean() # same vectors → loss_cos=0, orthogonal → loss_cos=1, opposite → loss_cos=2
 
