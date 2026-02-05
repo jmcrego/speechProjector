@@ -93,15 +93,32 @@ class AudioLLM(torch.nn.Module):
         text_norm = text_embs.norm(dim=-1).mean()
 
         # loss computation
-        loss_mse_txt = torch.nn.functional.mse_loss(text_embs[txt_mask], proj_embs[txt_mask], reduction="mean")
-        loss_mse_pad = torch.nn.functional.mse_loss(text_embs[pad_mask], proj_embs[pad_mask], reduction="mean")
-        loss_mse = self.alpha * loss_mse_txt + (10-self.alpha) * loss_mse_pad
-        loss_cos = 1.0 - torch.nn.functional.cosine_similarity(text_embs, proj_embs, dim=-1).mean()  # (B, T)
-        loss = loss_mse - self.gamma * loss_cos
+        loss_mse_txt = F.mse_loss(
+            text_embs[txt_mask],
+            proj_embs[txt_mask],
+            reduction="mean"
+        )
+
+        loss_mse_pad = F.mse_loss(
+            text_embs[pad_mask],
+            proj_embs[pad_mask],
+            reduction="mean"
+        )
+
+        cos = F.cosine_similarity(
+            text_embs[txt_mask],
+            proj_embs[txt_mask],
+            dim=-1
+        ) #same vectors → cos=1, orthogonal vectors → cos=0, opposite vectors → cos=-1
+
+        loss_mse = self.alpha * loss_mse_txt + (10 - self.alpha) * loss_mse_pad
+
+        loss_cos = 1.0 - cos.mean() # same vectors → loss_cos=0, orthogonal vectors → loss_cos=1, opposite vectors → loss_cos=2
+
+        loss = loss_mse + self.gamma * loss_cos
 
         return {
             "loss": loss,
-            # "labels": target_ids,
             "audio_norm": audio_norm,
             "text_norm": text_norm,
         }
