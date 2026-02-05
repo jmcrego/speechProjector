@@ -71,7 +71,7 @@ class AudioLLM(torch.nn.Module):
         assert input_embeds.size(0) == target_ids.size(0), f"Batch size mismatch between input_embeds and target_ids: {input_embeds.size(0)} vs {target_ids.size(0)}"
         assert input_embeds.size(1) == target_ids.size(1), f"Sequence length mismatch between input_embeds and target_ids: {input_embeds.size(1)} vs {target_ids.size(1)}"
 
-        # Count pad tokens - 1 (result cannot be lower than 0)
+        # Count txt tokens + 1 (result cannot be more than sequence length of target_ids)
         n_txt_tokens = (target_ids != self.tokenizer.pad_token_id).sum(dim=1) + 1 
         n_txt_tokens = torch.clamp(n_txt_tokens, max=target_ids.size(1)) # ensure n_txt_tokens does not exceed sequence length of target_ids
         # create the corresponding txt_mask/pad_mask
@@ -121,6 +121,7 @@ class AudioLLM(torch.nn.Module):
 
         if not hasattr(self, "_bucket_cache"):
             self._bucket_cache = OrderedDict()
+            self.buffer_size = 2  # max number of buckets to keep in memory (LRU eviction)
 
         # if isinstance(offsets, torch.Tensor):
         #     offsets = offsets.tolist()
