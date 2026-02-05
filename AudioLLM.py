@@ -57,7 +57,6 @@ class AudioLLM(torch.nn.Module):
 
     def save(self, ckpt_path):
         self.projector.save(ckpt_path)
-        self.llm_embedder.save(ckpt_path)
 
 
     # ========================================================
