@@ -13,14 +13,18 @@ logger = logging.getLogger("Dataset")
 
 def collate_fn(batch):
     def ensure_tensor(x):
-        return x.detach().clone() if isinstance(x, torch.Tensor) else torch.tensor(x, dtype=torch.long)
+        if isinstance(x, torch.Tensor):
+            return x
+        return torch.tensor(x, dtype=torch.long)
 
     assert "target_ids" in batch[0]
-    target_ids = ensure_tensor([x["target_ids"] for x in batch])  # (B, T) dtype=torch.long
+    target_ids = [x["target_ids"] for x in batch]
+    target_ids = ensure_tensor(target_ids)  # (B, T)
 
     assert "pt_path" in batch[0] and "offset" in batch[0]
-    pt_paths = [x["pt_path"] for x in batch]
-    offsets = torch.tensor([x["offset"] for x in batch], dtype=torch.long)
+    pt_paths = [x["pt_path"] for x in batch] # List[str] (B,)
+    offsets = [x["offset"] for x in batch] # List[int] (B,)
+    offsets = ensure_tensor(offsets) # (B,)
 
     return {
         "pt_paths": pt_paths,         # List[str] (B,)

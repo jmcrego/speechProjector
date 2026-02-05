@@ -63,21 +63,21 @@ class AudioLLM(torch.nn.Module):
     # Forward (training)
     # ========================================================
     def forward(self, target_ids, pt_paths, offsets):
+        # target_ids already in device and dtype of projector, no need to move here
+        input_embeds = self.read_cache_embs(pt_paths, offsets) #input_embes already in device and dtype of projector, no need to move here
 
-        input_embeds = self.read_cache_embs(pt_paths, offsets)
-        input_embeds = input_embeds.to(self.device)
-        target_ids = target_ids.to(self.device) #.to(torch.long)
         assert input_embeds.dim() == 3, f"Expected input_embeds to have 3 dimensions [B, T, D], got {input_embeds.shape}"
         assert target_ids.dim() == 2, f"Expected target_ids to have 2 dimensions [B, T], got {target_ids.shape}"
         assert input_embeds.size(0) == target_ids.size(0), f"Batch size mismatch between input_embeds and target_ids: {input_embeds.size(0)} vs {target_ids.size(0)}"
         assert input_embeds.size(1) == target_ids.size(1), f"Sequence length mismatch between input_embeds and target_ids: {input_embeds.size(1)} vs {target_ids.size(1)}"
 
         # Count pad tokens - 1 (result cannot be lower than 0)
-        pad_tokens = (target_ids == self.tokenizer.pad_token_id).sum(dim=1) - 1 # compute loss on pad_tokens with lower weight
-        pad_tokens = torch.clamp(pad_tokens, min=0)
+        n_txt_tokens = (target_ids != self.tokenizer.pad_token_id).sum(dim=1) + 1 
+        n_txt_tokens = torch.clamp(n_txt_tokens, max=target_ids.size(1)) # ensure n_txt_tokens does not exceed sequence length of target_ids
         # create the corresponding txt_mask/pad_mask
-        txt_mask = torch.arange(target_ids.size(1), device=target_ids.device).expand_as(target_ids) >= pad_tokens.unsqueeze(1) # [B, T] True for valid tokens, False for pad tokens to ignore in loss
-        pad_mask = ~txt_mask # [B, T] True for pad tokens, False for valid tokens    
+        positions = torch.arange(target_ids.size(1), device=target_ids.device).expand_as(target_ids) # [B, T] 
+        txt_mask = positions < n_txt_tokens.unsqueeze(1) # True for valid tokens, False for pad tokens to ignore in loss computation
+        pad_mask = ~txt_mask
 
         proj_embs, _ = self.projector(input_embeds)      # [B, S_max, D_llm]
         B, S_max, D = proj_embs.shape
@@ -95,13 +95,14 @@ class AudioLLM(torch.nn.Module):
         loss_mse_pad = torch.nn.functional.mse_loss(text_embs[pad_mask], proj_embs[pad_mask], reduction="mean")
         loss_mse = self.alpha * loss_mse_txt + (10-self.alpha) * loss_mse_pad
 
-        loss_cos = torch.nn.functional.cosine_embedding_loss(text_embs, proj_embs, torch.ones(B, device=text_embs.device), reduction="mean")
+        cos = torch.nn.functional.cosine_similarity(text_embs, proj_embs, dim=-1)  # (B, T)
+        loss_cos = 1.0 - cos.mean()
 
         loss = loss_mse - self.gamma * loss_cos
 
         return {
             "loss": loss,
-            "labels": target_ids,
+            # "labels": target_ids,
             "audio_norm": audio_norm,
             "text_norm": text_norm,
         }
@@ -152,6 +153,7 @@ class AudioLLM(torch.nn.Module):
 
         # Stack in original batch order
         audio_embs = torch.stack(batch_embs, dim=0)
+        audio_embs = audio_embs.to(self.projector.linear.weight.device) # move to same device as projector for forward pass
 
         return audio_embs
 
