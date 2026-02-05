@@ -86,9 +86,9 @@ class AudioLLM(torch.nn.Module):
         audio_norm = proj_embs.norm(dim=-1).mean()
 
         # LLM Embedder forward
-        text_embs = self.llm_embedder(proj_embs) # [B, S_max, D_llm]
+        text_embs = self.llm_embedder(target_ids) # [B, S_max, D_llm]
         B, T_max, D = text_embs.shape
-        assert T_max == target_ids.size(1), f"Expected T_max={target_ids.size(1)}, got {T_max}"
+        assert T_max == proj_embs.size(1), f"Expected T_max={proj_embs.size(1)}, got {T_max}"
         assert D == self.llm_embedding_dim, f"Expected D={self.llm_embedding_dim}, got {D}"
         text_norm = text_embs.norm(dim=-1).mean()
 
