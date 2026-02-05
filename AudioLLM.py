@@ -189,7 +189,7 @@ class AudioLLM(torch.nn.Module):
         logger.info("AudioLLM PARS.              TOTAL |       TRAINABLE |          FROZEN")
         logger.info("=" * 100)
         logger.info(f"Projector       : {projector_total:>15,} | {projector_trainable:>15,} | {projector_total - projector_trainable:>15,}")
-        logger.info(f"LLM (Embeddings): {llm_embedder_total:>15,} | {llm_embedder_total:>15,} | 0")
+        logger.info(f"LLM Embedder    : {llm_embedder_total:>15,} | {0:>15,} | {llm_embedder_total:>15,}")
         logger.info("-" * 100)
         logger.info(f"TOTAL           : {total_params:>15,} | {trainable_params:>15,} | {frozen_params:>15,}")
         logger.info(f"Trainable %     : {100 * trainable_params / total_params:.2f}%")
