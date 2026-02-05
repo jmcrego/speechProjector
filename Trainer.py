@@ -30,7 +30,6 @@ class Trainer:
         self,
         config,
         model,
-        tokenizer,
         train_dataset,
         eval_dataset=None,
         batch_size=4,
@@ -53,7 +52,6 @@ class Trainer:
 
         self.config = config
         self.model = model
-        self.tokenizer = tokenizer
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
         self.batch_size = batch_size
@@ -67,7 +65,7 @@ class Trainer:
         self.json_logger = json_logger
         os.makedirs(output_dir, exist_ok=True)
 
-        self.tokenizer = self.model.llm.tokenizer
+        self.tokenizer = self.model.tokenizer
 
         param = next(self.model.llm.model.parameters())
         self.device = param.device
