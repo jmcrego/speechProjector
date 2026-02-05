@@ -160,6 +160,9 @@ class Trainer:
         optimizer = self.optimizer
         optimizer.zero_grad()
         accum_loss = 0.0
+        accum_loss_cos = 0.0
+        accum_loss_mse_txt = 0.0
+        accum_loss_mse_pad = 0.0
         accum_audio_norm = 0.0
         accum_text_norm = 0.0
         total_pads = 0
@@ -188,7 +191,11 @@ class Trainer:
                     outputs = self.model(target_ids, pt_paths, offsets) 
                     raw_loss = outputs["loss"]
                     loss = raw_loss / self.accum_steps                    
+
                     accum_loss += raw_loss.detach()
+                    accum_loss_cos += outputs["loss_cos"].detach()
+                    accum_loss_mse_txt += outputs["loss_mse_txt"].detach()
+                    accum_loss_mse_pad += outputs["loss_mse_pad"].detach()
 
                     with torch.no_grad():
                         accum_audio_norm += outputs["audio_norm"].detach()
@@ -231,6 +238,9 @@ class Trainer:
                             avg_loss.item(),
                             audio_norm=avg_audio_norm.item(),
                             text_norm=avg_text_norm.item(),
+                            loss_cos=accum_loss_cos / self.accum_steps,
+                            loss_mse_txt=accum_loss_mse_txt / self.accum_steps,
+                            loss_mse_pad=accum_loss_mse_pad / self.accum_steps,
                             scale=scale_val,
                             proj_grad_norm=proj_grad_norm.item(),
                             total_pads=total_pads,
@@ -239,6 +249,9 @@ class Trainer:
                         self.json_logger.log(
                             type="train", step=self.step, loss=avg_loss.item(), 
                             audio_norm=avg_audio_norm.item(), text_norm=avg_text_norm.item(),
+                            loss_cos=accum_loss_cos / self.accum_steps,
+                            loss_mse_txt=accum_loss_mse_txt / self.accum_steps,
+                            loss_mse_pad=accum_loss_mse_pad / self.accum_steps,
                             scale=scale_val,
                             proj_grad_norm=proj_grad_norm.item(), 
                             total_pads=total_pads, total_samples=total_samples,
@@ -253,13 +266,7 @@ class Trainer:
 
                     # Evaluation + checkpoint
                     if self.eval_loader is not None and self.step % self.eval_every == 0:
-                        self.evaluate(
-                            max_new_tokens=256,
-                            temperature=0.0,
-                            top_p=1.0,
-                            no_repeat_ngram_size = 0,
-                            repetition_penalty = 1.1,
-                        )
+                        self.evaluate()
                         self.save_checkpoint(self.step)
 
                     if self.max_steps and self.step >= self.max_steps:
@@ -288,32 +295,22 @@ class Trainer:
         self,
     ):
         """
-        Evaluation with:
-        1) standard forward loss
+        Evaluation with standard forward loss
         """
         self.model.eval()
 
         total_loss = 0.0
-        n_batches = 0
-        
+        n_batches = 0        
         for batch in self.eval_loader:
-            # ----------------------------
-            # Move tensors to device
-            # ----------------------------
-            batch = {
-                k: v.to(self.device) if isinstance(v, torch.Tensor) else v
-                for k, v in batch.items()
-            }
-
-            # ----------------------------
-            # Forward pass (loss)
-            # ----------------------------
-            with torch.amp.autocast(
-                device_type="cuda",
-                dtype=self.dtype,
-                enabled=(self.device.type == "cuda"),
-            ):
-                outputs = self.model(**batch)
+            pt_paths = batch["pt_paths"] # list of paths to .pt files containing audio embeddings (tensor of shape [T', D])
+            offsets = batch["offsets"] # list of (start, end) frame offsets for each sample in the batch (for slicing audio embeddings)
+            target_ids = batch["target_ids"] # [B, L_max] torch.long token ids for ASR transcription (padded to seq_len)
+            target_ids = target_ids.to(self.device)
+            # Forward pass
+            # this with disables automatic mixed precision for everything inside that context.
+            with torch.amp.autocast(device_type='cuda', dtype=self.dtype, enabled=(self.device.type == "cuda")):
+                # Pass input_embeds instead of input_ids to the model, along with target_ids and attention_mask for loss computation
+                outputs = self.model(target_ids, pt_paths, offsets) 
 
             loss = outputs["loss"].item()
             total_loss += loss
@@ -331,7 +328,7 @@ class Trainer:
     # -----------------------
     # Logging 
     # -----------------------
-    def log_fn(self, loss, audio_norm=None, text_norm=None, scale=None, proj_grad_norm=None, is_eval=False, bleu=None, wer=None, cer=None, total_pads=0, total_samples=0, acc=None):
+    def log_fn(self, loss, audio_norm=None, text_norm=None, loss_cos=None, loss_mse_txt=None, loss_mse_pad=None, scale=None, proj_grad_norm=None, is_eval=False, bleu=None, wer=None, cer=None, total_pads=0, total_samples=0, acc=None):
         elapsed = (datetime.now() - self.start_time).total_seconds()
         h = int(elapsed // 3600)
         m = int((elapsed % 3600) // 60)
@@ -341,6 +338,9 @@ class Trainer:
         log_str += f"step={self.step:0>6d}/{self.max_steps} | "
         log_str += f"epoch={self.sample/len(self.train_dataset):.3f}/{self.max_epochs} | "
         log_str += f"loss={loss:.3f} | "
+        log_str += f"𝐿_cos={loss_cos:.3f} | " if loss_cos is not None else ""
+        log_str += f"𝐿_mse_txt={loss_mse_txt:.3f} | " if loss_mse_txt is not None else ""
+        log_str += f"𝐿_mse_pad={loss_mse_pad:.3f} | " if loss_mse_pad is not None else ""
         log_str += f"lr_proj={self.optimizer.param_groups[0]['lr']:.3e} | "
 
         if proj_grad_norm is not None:
