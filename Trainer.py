@@ -10,46 +10,32 @@ import random
 import logging
 import numpy as np
 from datetime import datetime
-import time
+from collections import OrderedDict
 
 import torch.nn as nn
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
-from transformers import get_linear_schedule_with_warmup
+from transformers import get_linear_schedule_with_warmup, get_cosine_schedule_with_warmup
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 
 from Dataset import BatchedBucketSampler, collate_fn
+from scripts.utils import compute_grad_norm
 
 logger = logging.getLogger("Trainer")
 
-
-def compute_grad_norm(params, eps=1e-6):
-    """
-    Compute total gradient norm of a list of parameters.
-    Skips parameters with no gradient. Returns a tensor on the same device as the first param.
-    """
-    grads = [p.grad.detach() for p in params if p.grad is not None]
-    if len(grads) == 0:
-        return torch.tensor(0.0)
-
-    # stack grads and compute total norm
-    stacked = torch.stack([g.pow(2).sum() for g in grads])
-    total_norm = torch.sqrt(stacked.sum() + eps)
-    return total_norm
 
 class Trainer:
     def __init__(
         self,
         config,
         model,
+        tokenizer,
         train_dataset,
         eval_dataset=None,
         batch_size=4,
-        lr_proj=5e-4,
         max_steps=10000,
         max_epochs=10,
-        warmup_steps=0,
         save_best_n=3,
         eval_every=1000,
         log_every=50,
@@ -67,13 +53,12 @@ class Trainer:
 
         self.config = config
         self.model = model
+        self.tokenizer = tokenizer
         self.train_dataset = train_dataset
         self.eval_dataset = eval_dataset
         self.batch_size = batch_size
-        self.lr_proj = lr_proj
         self.max_steps = max_steps
         self.max_epochs = max_epochs
-        self.warmup_steps = warmup_steps
         self.save_best_n = save_best_n
         self.eval_every = eval_every
         self.log_every = log_every
@@ -107,12 +92,9 @@ class Trainer:
         # -----------------------
         # Optimizer & Scheduler
         # -----------------------
-
-        self.optimizer = torch.optim.AdamW([
-            {"params": self.model.projector.parameters(), "lr": lr_proj},
-            {"params": [p for n, p in self.model.llm.model.named_parameters() if p.requires_grad], "lr": lr_lora},
-        ])
-        logger.info(f"Initialized AdamW optimizer with lr_proj={lr_proj} lr_lora={lr_lora}")
+        lr_proj= config['optim']['lr_proj']
+        self.optimizer = torch.optim.AdamW([{"params": self.model.projector.parameters(), "lr": lr_proj}])
+        logger.info(f"Initialized AdamW optimizer with lr_proj={lr_proj}")
 
         if resume:
             state = torch.load(config['projector']['path'].replace(".proj.pt",".optim.pt"))
@@ -123,12 +105,14 @@ class Trainer:
             self.step = 0
 
         self.batch = 0 # microbatch step
-        self.epoch = 0
-        self.sample = 0
+        self.epoch = 0 # number of epochs completed
+        self.sample = 0 # number of samples processed
         self.start_time = datetime.now()
 
-        self.scheduler = get_linear_schedule_with_warmup(self.optimizer, num_warmup_steps=int(self.warmup_steps), num_training_steps=self.max_steps)
-        logger.info(f"Initialized Linear scheduler with warmup. {self.max_steps} steps, ({self.warmup_steps}) warmup steps)")
+        warmup_steps = config['optim']['warmup_steps']
+        # cosine scheduler with warmup
+        self.scheduler = get_cosine_schedule_with_warmup(self.optimizer, num_warmup_steps=int(warmup_steps), num_training_steps=self.max_steps)
+        logger.info(f"Initialized Cosine scheduler with warmup. {self.max_steps} steps, ({warmup_steps}) warmup steps)")
 
 
     # -----------------------------
@@ -160,8 +144,6 @@ class Trainer:
 
         # Save config file after updating lora path
         self.config['projector']['path'] = ckpt_path + ".proj.pt"
-        self.config['lora']['path'] = ckpt_path + ".lora"
-        self.config['embeddings']['path'] = ckpt_path + ".embs.pt"
         with open(f"{ckpt_path}.config.json", "w", encoding="utf-8") as file:
             json.dump(self.config, file, indent=4)
         logger.info(f"Saved config to {ckpt_path}.config.json")
@@ -190,21 +172,23 @@ class Trainer:
             self.epoch += 1
 
             for batch in self.train_loader:
-                self.batch += 1
-                self.sample += batch["prompt_ids"].size(0)
-                # Move tensors to device
-                batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
+                pt_paths = batch["pt_paths"] # list of paths to .pt files containing audio embeddings (tensor of shape [T', D])
+                offsets = batch["offsets"] # list of (start, end) frame offsets for each sample in the batch (for slicing audio embeddings)
+                target_ids = batch["target_ids"] # [B, L_max] torch.long token ids for ASR transcription (padded to seq_len)
 
-                # Number of pad tokens in the batch (for logging pad)
-                total_pads += (batch["prompt_ids"] == self.tokenizer.pad_token_id).sum().item() + (batch["target_ids"] == self.tokenizer.pad_token_id).sum().item()
-                # Number of samples (for logging pad)
-                total_samples += batch["prompt_ids"].size(0)
+                self.batch += 1
+                self.sample += batch["target_ids"].size(0)
+                total_pads += (target_ids == self.tokenizer.pad_token_id).sum().item() # Number of pad tokens in the batch (for logging pad)
+                total_samples += batch["target_ids"].size(0) # Number of samples (for logging pad)
+
+                # Move tensors to device
+                # batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
 
                 # Forward pass
                 # this with disables automatic mixed precision for everything inside that context.
                 with torch.amp.autocast(device_type='cuda', dtype=self.dtype, enabled=(self.device.type == "cuda")):
-                    outputs = self.model(**batch)
-
+                    # Pass input_embeds instead of input_ids to the model, along with target_ids and attention_mask for loss computation
+                    outputs = self.model(target_ids, pt_paths, offsets) 
                     raw_loss = outputs["loss"]
                     loss = raw_loss / self.accum_steps                    
                     accum_loss += raw_loss.detach()
@@ -380,6 +364,58 @@ class Trainer:
         
         log_str += f"elapsed={h:02d}h:{m:02d}m:{s:02d}s"
         logger.info(log_str)
+
+
+    def read_cache_embs(self, pt_paths, offsets):
+        """
+        Reads the batch embeddings cached in disk as indicated by pt_paths and offsets. 
+        Saves the last buckets in an LRU cache to speed up access for samples in the same bucket.
+        Args:
+            pt_paths (List[str]): bucket filenames
+            offsets (List[int] or Tensor): index inside each bucket
+
+        Returns:
+            audio_embs: Tensor [B, T, D] (on CPU)
+        """
+
+        # Simple in-memory cache to avoid redundant disk reads for samples in the same bucket (pt_path)
+        if not hasattr(self, "_bucket_cache"):
+            self._bucket_cache = OrderedDict()  # pt_path → bucket dict with "audio_embs" key
+            self._buffer_size = 2  # max number of buckets to keep in memory
+
+        if isinstance(offsets, torch.Tensor):
+            offsets = offsets.tolist()
+
+        assert len(pt_paths) == len(offsets)
+
+        # Group batch positions by pt_path
+        path_to_items = {}
+        for batch_idx, (pt_path, offset) in enumerate(zip(pt_paths, offsets)):
+            path_to_items.setdefault(pt_path, []).append((batch_idx, offset))
+
+        batch_embs = [None] * len(pt_paths)
+
+        for pt_path, items in path_to_items.items():
+            # ---- Load or reuse bucket ----
+            if pt_path in self._bucket_cache:
+                bucket = self._bucket_cache.pop(pt_path)  # mark as recently used
+            else:
+                bucket = torch.load(pt_path, map_location="cpu")
+                # Enforce buffer size (LRU eviction)
+                if len(self._bucket_cache) >= self._buffer_size:
+                    self._bucket_cache.popitem(last=False)
+
+            self._bucket_cache[pt_path] = bucket
+            bucket_embs = bucket["audio_embs"]  # [B_bucket, T, D]
+
+            # ---- Extract needed embeddings ----
+            for batch_idx, offset in items:
+                batch_embs[batch_idx] = bucket_embs[offset]
+
+        # Stack in original batch order
+        audio_embs = torch.stack(batch_embs, dim=0)
+
+        return audio_embs
 
 
 # x: [B, T, D] embeddings (B=batch size, T=time steps, D=embedding dim)

@@ -91,3 +91,18 @@ def preprocess_audio(audio_input, sample_rate=None, channel=-1, norm=True):
         # logger.debug(f"preprocess: resample to {sample_rate} wav shape={wav.shape}")
 
     return wav
+
+
+def compute_grad_norm(params, eps=1e-6):
+    """
+    Compute total gradient norm of a list of parameters.
+    Skips parameters with no gradient. Returns a tensor on the same device as the first param.
+    """
+    grads = [p.grad.detach() for p in params if p.grad is not None]
+    if len(grads) == 0:
+        return torch.tensor(0.0)
+
+    # stack grads and compute total norm
+    stacked = torch.stack([g.pow(2).sum() for g in grads])
+    total_norm = torch.sqrt(stacked.sum() + eps)
+    return total_norm

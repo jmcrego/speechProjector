@@ -15,9 +15,8 @@ def collate_fn(batch):
     def ensure_tensor(x):
         return x.detach().clone() if isinstance(x, torch.Tensor) else torch.tensor(x, dtype=torch.long)
 
-    assert "target_ids" in batch[0] and "attention_mask" in batch[0]
+    assert "target_ids" in batch[0]
     target_ids = ensure_tensor([x["target_ids"] for x in batch])  # (B, T) dtype=torch.long
-    attention_mask = ensure_tensor([x["attention_mask"] for x in batch])  # (B, T) dtype=torch.long
 
     assert "pt_path" in batch[0] and "offset" in batch[0]
     pt_paths = [x["pt_path"] for x in batch]
@@ -27,7 +26,6 @@ def collate_fn(batch):
         "pt_paths": pt_paths,         # List[str] (B,)
         "offsets": offsets,           # (B,)
         "target_ids": target_ids,     # (B, T)
-        "attention_mask": attention_mask, # (B, T)
     }
 
 
@@ -145,11 +143,10 @@ class Dataset(Dataset):
                 max_length=seq_len,
                 truncation=False, 
                 add_special_tokens=False, 
-                return_attention_mask=True,
+                return_attention_mask=False,
             )
 
             target_ids = toks.input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
-            attention_mask = toks.attention_mask[0].bool() #tensor([1, 1, 1, 0, 0], dtype=torch.bool)
 
             if target_ids.size(0) == 0:
                 logger.warning(f"Skipping empty target_ids for sample idx={idx}")
@@ -163,7 +160,6 @@ class Dataset(Dataset):
 
             sample["pt_path"] = file_path_dir / sample["pt_path"]
             sample["target_ids"] = target_ids
-            sample["attention_mask"] = attention_mask
 
             self.samples.append(sample)
 
@@ -213,9 +209,8 @@ if __name__ == "__main__":
         print(f"Batch {i}")
         for idx in batch:
             target_ids = ds[idx]["target_ids"]
-            mask = ds[idx]["attention_mask"]
             pt_path = ds[idx]["pt_path"]
             duration = ds[idx]["duration"]
             # for each ids in target_ids build the tuple (ids, token_str)
             target = [(ids.item(), tokenizer.decode(ids)) for ids in target_ids]
-            print(f"\tidx={idx}\n\tduration={duration:.2f}\n\ttarget={target}\n\tmask={mask.tolist()}\n\tpt_path={pt_path}\n")
+            print(f"\tidx={idx}\n\tduration={duration:.2f}\n\ttarget={target}\n\tpt_path={pt_path}\n")
