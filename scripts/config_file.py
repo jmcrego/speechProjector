@@ -59,7 +59,7 @@ config = {
         'warmup_steps': 10000,
         'alpha': 0.5,   # 𝐿_MSE = 𝛼 MSE_txt + (1−𝛼) MSE_pad, use [0, 1]
         'gamma': 10, # 𝐿 = 𝐿_MSE + 𝛾 𝐿_cosine + 𝛽 𝐿_scale
-        'beta': 10,
+        'beta': 0.1,
         'best_metric': "wer",
         'best_score': "min",
         'scores':[
