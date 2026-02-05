@@ -45,8 +45,8 @@ class Trainer:
         resume=False,
     ):
         
-        meta = {k: v for k, v in locals().items() if k != "self" and k != "__class__" and not k.endswith('dataset') and not k == "model"}
-        logger.info(f"Initializing {meta}")        
+        # meta = {k: v for k, v in locals().items() if k != "self" and k != "__class__" and not k.endswith('dataset') and not k == "model"}
+        # logger.info(f"Initializing {meta}")        
 
         self.seed_everything(seed)
 
@@ -67,9 +67,10 @@ class Trainer:
 
         self.tokenizer = self.model.tokenizer
 
-        param = next(self.model.llm.model.parameters())
+        param = next(self.model.parameters())
         self.device = param.device
         self.dtype = param.dtype
+        logger.info(f"Model parameters are on device={self.device} with dtype={self.dtype}")
 
         # -----------------------
         # Sampler & DataLoader
