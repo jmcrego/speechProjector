@@ -79,25 +79,25 @@ class AudioLLM(torch.nn.Module):
         txt_mask = positions < n_txt_tokens.unsqueeze(1) # True for valid tokens, False for pad tokens to ignore in loss computation
         pad_mask = ~txt_mask
 
+        # Projector forward
         proj_embs, _ = self.projector(input_embeds)      # [B, S_max, D_llm]
         B, S_max, D = proj_embs.shape
         assert S_max == input_embeds.size(1), f"Expected S_max={input_embeds.size(1)}, got {S_max}"
         assert D == self.llm_embedding_dim, f"Expected D={self.llm_embedding_dim}, got {D}"
         audio_norm = proj_embs.norm(dim=-1).mean()
 
+        # LLM Embedder forward
         text_embs = self.llm_embedder(proj_embs) # [B, S_max, D_llm]
         B, T_max, D = text_embs.shape
         assert T_max == txt_mask.size(1), f"Expected T_max={txt_mask.size(1)}, got {T_max}"
         assert D == self.llm_embedding_dim, f"Expected D={self.llm_embedding_dim}, got {D}"
         text_norm = text_embs.norm(dim=-1).mean()
 
+        # loss computation
         loss_mse_txt = torch.nn.functional.mse_loss(text_embs[txt_mask], proj_embs[txt_mask], reduction="mean")
         loss_mse_pad = torch.nn.functional.mse_loss(text_embs[pad_mask], proj_embs[pad_mask], reduction="mean")
         loss_mse = self.alpha * loss_mse_txt + (10-self.alpha) * loss_mse_pad
-
-        cos = torch.nn.functional.cosine_similarity(text_embs, proj_embs, dim=-1)  # (B, T)
-        loss_cos = 1.0 - cos.mean()
-
+        loss_cos = 1.0 - torch.nn.functional.cosine_similarity(text_embs, proj_embs, dim=-1).mean()  # (B, T)
         loss = loss_mse - self.gamma * loss_cos
 
         return {
@@ -113,7 +113,7 @@ class AudioLLM(torch.nn.Module):
         Reads the batch embeddings cached in disk as indicated by pt_paths and offsets
         Args:
             pt_paths (List[str]): bucket filenames
-            offsets (List[int] or Tensor): index inside each bucket
+            offsets (List[int]): index inside each bucket
 
         Returns:
             audio_embs: Tensor [B, T, D] (on CPU)
@@ -122,8 +122,8 @@ class AudioLLM(torch.nn.Module):
         if not hasattr(self, "_bucket_cache"):
             self._bucket_cache = OrderedDict()
 
-        if isinstance(offsets, torch.Tensor):
-            offsets = offsets.tolist()
+        # if isinstance(offsets, torch.Tensor):
+        #     offsets = offsets.tolist()
 
         assert len(pt_paths) == len(offsets)
 
