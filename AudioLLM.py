@@ -42,7 +42,6 @@ class AudioLLM(torch.nn.Module):
         self.projector.to(device=device, dtype=dtype)      #use float32 to ensure stability during early training of projector
         self.projector.unfreeze()
         self.llm_embedder.to(device=device, dtype=dtype)      #float16/bfloat16 is for memory efficiency
-        ### freeze embedding layer
         self.llm_embedder.eval()
         for p in self.llm_embedder.parameters():
             p.requires_grad = False
