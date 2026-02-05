@@ -52,6 +52,7 @@ class AudioLLM(torch.nn.Module):
 
         self.alpha = config['optim']['alpha']
         self.gamma = config['optim']['gamma']
+        self.beta = config['optim']['beta']
 
         self.summary()
 
@@ -105,9 +106,12 @@ class AudioLLM(torch.nn.Module):
         # same vectors → cos=1, orthogonal → cos=0, opposite → cos=-1
         loss_cos = 1.0 - cos.mean()
 
+        # ----- Scale loss: encourage similar norms between projected audio and text embeddings (stability during early training) -----
+        loss_scale = (proj_embs.norm(dim=-1) - text_embs.norm(dim=-1)).pow(2).mean()
+
         # ----- Final loss -----
         # loss_mse handles scale + direction, loss_cos handles purely direction
-        loss = loss_mse + self.gamma * loss_cos
+        loss = loss_mse + self.gamma * loss_cos + self.beta * loss_scale
 
         # ----- Logging info -----
         audio_norm = proj_embs.norm(dim=-1).mean()
@@ -118,6 +122,7 @@ class AudioLLM(torch.nn.Module):
             "loss_mse_txt": loss_mse_txt,
             "loss_mse_pad": loss_mse_pad,
             "loss_cos": loss_cos,
+            "loss_scale": loss_scale,
             "audio_norm": audio_norm,
             "text_norm": text_norm,
         }
