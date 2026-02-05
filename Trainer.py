@@ -76,11 +76,11 @@ class Trainer:
         # Sampler & DataLoader
         # -----------------------
         
-        self.train_sampler = BatchedBucketSampler(train_dataset, batch_size=batch_size, shuffle=not train_dataset.is_cached)
+        self.train_sampler = BatchedBucketSampler(train_dataset, batch_size=batch_size, shuffle=True)
         self.train_loader = DataLoader(train_dataset, batch_sampler=self.train_sampler, collate_fn=collate_fn)
         logger.info(f"Initialized Sampler and DataLoader for train with batch_size={batch_size} with {len(self.train_dataset)} samples")
 
-        self.eval_sampler = BatchedBucketSampler(eval_dataset, batch_size=batch_size, shuffle=not train_dataset.is_cached)
+        self.eval_sampler = BatchedBucketSampler(eval_dataset, batch_size=batch_size, shuffle=False)
         self.eval_loader = DataLoader(eval_dataset, batch_sampler=self.eval_sampler, collate_fn=collate_fn)
         logger.info(f"Initialized Sampler and DataLoader for eval with batch_size={batch_size} with {len(self.eval_dataset)} samples")
 
