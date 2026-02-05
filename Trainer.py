@@ -175,14 +175,12 @@ class Trainer:
                 pt_paths = batch["pt_paths"] # list of paths to .pt files containing audio embeddings (tensor of shape [T', D])
                 offsets = batch["offsets"] # list of (start, end) frame offsets for each sample in the batch (for slicing audio embeddings)
                 target_ids = batch["target_ids"] # [B, L_max] torch.long token ids for ASR transcription (padded to seq_len)
+                target_ids = target_ids.to(self.device)
 
                 self.batch += 1
                 self.sample += batch["target_ids"].size(0)
                 total_pads += (target_ids == self.tokenizer.pad_token_id).sum().item() # Number of pad tokens in the batch (for logging pad)
                 total_samples += batch["target_ids"].size(0) # Number of samples (for logging pad)
-
-                # Move tensors to device
-                # batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
 
                 # Forward pass
                 # this with disables automatic mixed precision for everything inside that context.
