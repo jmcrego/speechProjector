@@ -39,7 +39,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_best_n", type=int, default=3, help="Save top N checkpoints")
     parser.add_argument("--resume", action="store_true", help="Resume previous training")
     # output
-    parser.add_argument("--output_dir", type=str, default="./sft_output", help="Output directory of training")
+    parser.add_argument("--output_dir", type=str, default="./stage1", help="Output directory of training")
     parser.add_argument("--debug", action="store_true", help="Debug mode with more logging")
     args = parser.parse_args()
 
