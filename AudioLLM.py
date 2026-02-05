@@ -94,33 +94,22 @@ class AudioLLM(torch.nn.Module):
         text_norm = text_embs.norm(dim=-1).mean()
 
         # MSE enforces absolute alignment (scale + direction)
-        loss_mse_txt = F.mse_loss(
-            text_embs[txt_mask],
-            proj_embs[txt_mask],
-            reduction="mean"
-        )
-
-        loss_mse_pad = F.mse_loss(
-            text_embs[pad_mask],
-            proj_embs[pad_mask],
-            reduction="mean"
-        )
+        loss_mse_txt = F.mse_loss(text_embs[txt_mask], proj_embs[txt_mask], reduction="mean")
+        loss_mse_pad = F.mse_loss(text_embs[pad_mask], proj_embs[pad_mask], reduction="mean")
 
         # Cosine loss enforces directional alignment
-        cos = F.cosine_similarity(
-            text_embs[txt_mask],
-            proj_embs[txt_mask],
-            dim=-1
-        ) #same vectors → cos=1, orthogonal → cos=0, opposite → cos=-1
+        cos = F.cosine_similarity(text_embs[txt_mask], proj_embs[txt_mask], dim=-1) #same vectors → cos=1, orthogonal → cos=0, opposite → cos=-1
 
         loss_mse = self.alpha * loss_mse_txt + (10 - self.alpha) * loss_mse_pad # balance between aligning semantic tokens and pad tokens
-
         loss_cos = 1.0 - cos.mean() # same vectors → loss_cos=0, orthogonal → loss_cos=1, opposite → loss_cos=2
-
         loss = loss_mse + self.gamma * loss_cos
 
         return {
             "loss": loss,
+            "loss_mse": loss_mse,
+            "loss_mse_txt": loss_mse_txt,
+            "loss_mse_pad": loss_mse_pad,
+            "loss_cos": loss_cos,
             "audio_norm": audio_norm,
             "text_norm": text_norm,
         }
