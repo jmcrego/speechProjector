@@ -141,7 +141,7 @@ class Trainer:
         torch.save(state, f"{ckpt_path}.optim.pt")
         logger.info(f"Saved optimizer to {ckpt_path}.optim.pt")
 
-        # Save config file after updating lora path
+        # Save config file after updating path
         self.config['projector']['path'] = ckpt_path + ".proj.pt"
         with open(f"{ckpt_path}.config.json", "w", encoding="utf-8") as file:
             json.dump(self.config, file, indent=4)
@@ -204,7 +204,6 @@ class Trainer:
 
                     # --- Compute grad norms ---
                     proj_grad_norm = compute_grad_norm(self.model.projector.parameters())
-                    lora_grad_norm = compute_grad_norm(self.model.llm.lora_parameters())
 
                     scale_val = getattr(self.model.projector, "scale", None)
                     if scale_val is not None and isinstance(scale_val, torch.Tensor):
@@ -234,7 +233,6 @@ class Trainer:
                             text_norm=avg_text_norm.item(),
                             scale=scale_val,
                             proj_grad_norm=proj_grad_norm.item(),
-                            lora_grad_norm=lora_grad_norm.item(),
                             total_pads=total_pads,
                             total_samples=total_samples,
                         )
@@ -242,7 +240,7 @@ class Trainer:
                             type="train", step=self.step, loss=avg_loss.item(), 
                             audio_norm=avg_audio_norm.item(), text_norm=avg_text_norm.item(),
                             scale=scale_val,
-                            proj_grad_norm=proj_grad_norm.item(), lora_grad_norm=lora_grad_norm.item(),
+                            proj_grad_norm=proj_grad_norm.item(), 
                             total_pads=total_pads, total_samples=total_samples,
                         )
 
@@ -333,7 +331,7 @@ class Trainer:
     # -----------------------
     # Logging 
     # -----------------------
-    def log_fn(self, loss, audio_norm=None, text_norm=None, scale=None, proj_grad_norm=None, lora_grad_norm=None, is_eval=False, bleu=None, wer=None, cer=None, total_pads=0, total_samples=0, acc=None):
+    def log_fn(self, loss, audio_norm=None, text_norm=None, scale=None, proj_grad_norm=None, is_eval=False, bleu=None, wer=None, cer=None, total_pads=0, total_samples=0, acc=None):
         elapsed = (datetime.now() - self.start_time).total_seconds()
         h = int(elapsed // 3600)
         m = int((elapsed % 3600) // 60)
@@ -348,8 +346,6 @@ class Trainer:
 
         if proj_grad_norm is not None:
             log_str += f"‖proj_grad‖={proj_grad_norm:.2f} | "
-        if lora_grad_norm is not None:
-            log_str += f"‖lora_grad‖={lora_grad_norm:.2f} | "
         if scale is not None:
             log_str += f"scale={scale:.2f} | "
         if audio_norm is not None:
