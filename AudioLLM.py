@@ -99,7 +99,7 @@ class AudioLLM(torch.nn.Module):
         loss_mse_pad = F.mse_loss(text_embs[pad_mask], proj_embs[pad_mask], reduction="mean")
 
         # Combine MSE contributions
-        loss_mse = self.alpha * loss_mse_txt + (10 - self.alpha) * loss_mse_pad
+        loss_mse = self.alpha * loss_mse_txt + (1 - self.alpha) * loss_mse_pad
 
         # ----- Cosine loss: directional alignment -----
         cos = F.cosine_similarity(text_embs[txt_mask], proj_embs[txt_mask], dim=-1)
