@@ -58,7 +58,7 @@ config = {
         'lr_proj': 1e-4,
         'warmup_steps': 10000,
         'alpha': 0.5,   # 𝐿_MSE = 𝛼 MSE_txt + (1−𝛼) MSE_pad, use [0, 1]
-        'gamma': 10, # 𝐿 = 𝐿_MSE + 𝛾 𝐿_cosine + 𝛽 𝐿_scale
+        'gamma': 10, # 𝐿 = 𝐿_MSE + 𝛾 𝐿_cosine 
         'best_metric': "wer",
         'best_score': "min",
         'scores':[
