@@ -107,7 +107,7 @@ class AudioLLM(torch.nn.Module):
         loss_cos = 1.0 - cos.mean()
 
         # ----- Scale loss: encourage similar norms between projected audio and text embeddings (stability during early training) -----
-        loss_scale = (proj_embs.norm(dim=-1) - text_embs.norm(dim=-1)).pow(2).mean()
+        loss_scale = (proj_embs[txt_mask].norm(dim=-1) - text_embs[txt_mask].norm(dim=-1)).pow(2).mean()
 
         # ----- Final loss -----
         # loss_mse handles scale + direction, loss_cos handles purely direction
