@@ -92,7 +92,7 @@ class AudioLLM(torch.nn.Module):
         assert D == self.llm_embedding_dim, f"Expected D={self.llm_embedding_dim}, got {D}"
         text_norm = text_embs.norm(dim=-1).mean()
 
-        # loss computation
+        # MSE enforces absolute alignment (scale + direction)
         loss_mse_txt = F.mse_loss(
             text_embs[txt_mask],
             proj_embs[txt_mask],
@@ -105,15 +105,16 @@ class AudioLLM(torch.nn.Module):
             reduction="mean"
         )
 
+        # Cosine loss enforces directional alignment
         cos = F.cosine_similarity(
             text_embs[txt_mask],
             proj_embs[txt_mask],
             dim=-1
-        ) #same vectors → cos=1, orthogonal vectors → cos=0, opposite vectors → cos=-1
+        ) #same vectors → cos=1, orthogonal → cos=0, opposite → cos=-1
 
-        loss_mse = self.alpha * loss_mse_txt + (10 - self.alpha) * loss_mse_pad
+        loss_mse = self.alpha * loss_mse_txt + (10 - self.alpha) * loss_mse_pad 
 
-        loss_cos = 1.0 - cos.mean() # same vectors → loss_cos=0, orthogonal vectors → loss_cos=1, opposite vectors → loss_cos=2
+        loss_cos = 1.0 - cos.mean() # same vectors → loss_cos=0, orthogonal → loss_cos=1, opposite → loss_cos=2
 
         loss = loss_mse + self.gamma * loss_cos
 
