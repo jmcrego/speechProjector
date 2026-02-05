@@ -342,7 +342,6 @@ class Trainer:
         log_str += f"epoch={self.sample/len(self.train_dataset):.3f}/{self.max_epochs} | "
         log_str += f"loss={loss:.3f} | "
         log_str += f"lr_proj={self.optimizer.param_groups[0]['lr']:.3e} | "
-        log_str += f"lr_lora={self.optimizer.param_groups[1]['lr']:.3e} | "
 
         if proj_grad_norm is not None:
             log_str += f"‖proj_grad‖={proj_grad_norm:.2f} | "
