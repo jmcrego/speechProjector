@@ -161,7 +161,6 @@ class Trainer:
         optimizer.zero_grad()
         accum_loss = 0.0
         accum_loss_cos = 0.0
-        accum_loss_scale = 0.0
         accum_loss_mse_txt = 0.0
         accum_loss_mse_pad = 0.0
         accum_audio_norm = 0.0
@@ -195,7 +194,6 @@ class Trainer:
 
                     accum_loss += raw_loss.detach()
                     accum_loss_cos += outputs["loss_cos"].detach()
-                    accum_loss_scale += outputs["loss_scale"].detach()
                     accum_loss_mse_txt += outputs["loss_mse_txt"].detach()
                     accum_loss_mse_pad += outputs["loss_mse_pad"].detach()
                     with torch.no_grad():
@@ -240,7 +238,6 @@ class Trainer:
                             audio_norm=avg_audio_norm.item(),
                             text_norm=avg_text_norm.item(),
                             loss_cos=accum_loss_cos.item() / self.accum_steps,
-                            loss_scale=accum_loss_scale.item() / self.accum_steps,
                             loss_mse_txt=accum_loss_mse_txt.item() / self.accum_steps,
                             loss_mse_pad=accum_loss_mse_pad.item() / self.accum_steps,
                             scale=scale_val,
@@ -252,7 +249,6 @@ class Trainer:
                             type="train", step=self.step, loss=avg_loss.item(), 
                             audio_norm=avg_audio_norm.item(), text_norm=avg_text_norm.item(),
                             loss_cos=accum_loss_cos.item() / self.accum_steps,
-                            loss_scale=accum_loss_scale.item() / self.accum_steps,
                             loss_mse_txt=accum_loss_mse_txt.item() / self.accum_steps,
                             loss_mse_pad=accum_loss_mse_pad.item() / self.accum_steps,
                             scale=scale_val,
@@ -265,7 +261,6 @@ class Trainer:
 
                     accum_loss = 0.0
                     accum_loss_cos = 0.0
-                    accum_loss_scale = 0.0
                     accum_loss_mse_txt = 0.0
                     accum_loss_mse_pad = 0.0
                     accum_audio_norm = 0.0
@@ -335,7 +330,7 @@ class Trainer:
     # -----------------------
     # Logging 
     # -----------------------
-    def log_fn(self, loss, audio_norm=None, text_norm=None, loss_cos=None, loss_scale=None, loss_mse_txt=None, loss_mse_pad=None, scale=None, proj_grad_norm=None, is_eval=False, bleu=None, wer=None, cer=None, total_pads=0, total_samples=0, acc=None):
+    def log_fn(self, loss, audio_norm=None, text_norm=None, loss_cos=None, loss_mse_txt=None, loss_mse_pad=None, scale=None, proj_grad_norm=None, is_eval=False, bleu=None, wer=None, cer=None, total_pads=0, total_samples=0, acc=None):
         elapsed = (datetime.now() - self.start_time).total_seconds()
         h = int(elapsed // 3600)
         m = int((elapsed % 3600) // 60)
@@ -346,7 +341,6 @@ class Trainer:
         log_str += f"epoch={self.sample/len(self.train_dataset):.3f}/{self.max_epochs} | "
         log_str += f"loss={loss:.3f} | "
         log_str += f"𝐿_cos={loss_cos:.3f} | " if loss_cos is not None else ""
-        log_str += f"𝐿_scale={loss_scale:.3f} | " if loss_scale is not None else ""
         log_str += f"𝐿_mse_txt={loss_mse_txt:.3f} | " if loss_mse_txt is not None else ""
         log_str += f"𝐿_mse_pad={loss_mse_pad:.3f} | " if loss_mse_pad is not None else ""
         log_str += f"lr_proj={self.optimizer.param_groups[0]['lr']:.3e} | "
