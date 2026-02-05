@@ -57,7 +57,7 @@ config = {
     "optim": {
         'lr_proj': 1e-4,
         'warmup_steps': 10000,
-        'alpha': 5,   # 𝐿_MSE = 𝛼 MSE_txt + (10−𝛼) MSE_pad
+        'alpha': 5,   # 𝐿_MSE = 𝛼 MSE_txt + (10−𝛼) MSE_pad (use [1, 9])
         'gamma': 100, # 𝐿 = 𝐿_MSE − 𝛾 𝐿_cosine
         'best_metric': "wer",
         'best_score': "min",
