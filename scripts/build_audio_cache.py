@@ -160,7 +160,7 @@ if __name__ == "__main__":
             if split != args.split:
                 continue
 
-        lang = s.get("slang", "")
+        lang = s.get("transcription", {}).get("lang", "")
         if args.lang:
             if lang != args.lang:
                 continue
