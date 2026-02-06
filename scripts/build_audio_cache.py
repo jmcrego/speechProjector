@@ -205,7 +205,7 @@ if __name__ == "__main__":
         logger.info("No samples to process after filtering.")
         sys.exit(0)
 
-    logger.info(f"Found {len(samples_triplets)} unique audio files with valid transcriptions after tokenization.")
+    logger.info(f"Found {len(samples_triplets)} triplets audio files (split/slang/tlang)")
     logger.info(f"Splits: {splits}")
     logger.info(f"slangs: {slangs}")
     logger.info(f"tlangs: {tlangs}")
