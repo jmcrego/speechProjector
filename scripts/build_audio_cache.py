@@ -234,13 +234,15 @@ if __name__ == "__main__":
     audio_embedder.to(args.device, dtype=torch_dtype)
     audio_embedder.eval()
 
+    idx = 0
     for split, slang, tlang in combinations:
+        idx += 1
         combinations_samples = [
             s for s in samples_triplets
             if s['split'] == split and s['slang'] == slang and s['tlang'] == tlang
         ]
         combinations_samples.sort(key=lambda x: (x["len"], x["audio_file"]))
-        logger.info(f"Combination (split={split}, {slang}-{tlang}): {len(combinations_samples)} samples")
+        logger.info(f"Combination {idx}/{len(combinations)} ({split}: {slang}-{tlang}): {len(combinations_samples)} samples")
 
         save_sorted_samples(
             audio_embedder, 
