@@ -151,8 +151,8 @@ if __name__ == "__main__":
     parser.add_argument("--tlang", type=str, default=None, help="Translation language to use (use all if not given)")
     parser.add_argument("--device", type=str, default="cuda", help="Device for embeddings")
     parser.add_argument("--dtype", type=str, default="float16", help="Torch dtype for embeddings")
-    parser.add_argument("--batch_size", type=int, default=128, help="Number of samples to fed to embedder")
-    parser.add_argument("--bucket_size", type=int, default=128, help="Number of samples per saved bucket")
+    parser.add_argument("--batch_size", type=int, default=256, help="Number of samples to fed to embedder")
+    parser.add_argument("--bucket_size", type=int, default=256, help="Number of samples per saved bucket")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
