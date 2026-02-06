@@ -123,7 +123,8 @@ if __name__ == "__main__":
     parser.add_argument("--tokenizer_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct")
     #correct the next line
     parser.add_argument("--split", type=str, default=None, help="Split to use (use all if not given)")
-    parser.add_argument("--lang", type=str, default=None, help="Transcription language to use (use all if not given)")
+    parser.add_argument("--slang", type=str, default=None, help="Transcription language to use (use all if not given)")
+    parser.add_argument("--tlang", type=str, default=None, help="Translation language to use (use all if not given)")
     parser.add_argument("--device", type=str, default="cuda", help="Device for embeddings")
     parser.add_argument("--dtype", type=str, default="float16", help="Torch dtype for embeddings")
     parser.add_argument("--batch_size", type=int, default=128, help="Number of samples to fed to embedder")
@@ -140,7 +141,7 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path, use_fast=True)
 
     # Read JSON samples
-    samples = read_samples_from_jsonl(args.json_path, split=args.split, slang=args.slang, tlang=args.tlang)
+    samples = read_samples_from_jsonl(args.json_path, split=args.split, slang=args.lang, tlang=args.tlang)
     logger.info(f"Read {len(samples)} samples from {args.json_path} with split={args.split}, slang={args.slang}, tlang={args.tlang}")
 
     # Compute tokenized lengths
@@ -160,9 +161,14 @@ if __name__ == "__main__":
             if split != args.split:
                 continue
 
-        lang = s.get("transcription", {}).get("lang", "")
-        if args.lang:
-            if lang != args.lang:
+        slang = s.get("transcription", {}).get("lang", "")
+        if args.slang:
+            if slang != args.slang:
+                continue
+
+        tlang = s.get("translation", {}).get("lang", "")
+        if args.tlang:
+            if tlang != args.tlang:
                 continue
 
         text = s.get("transcription", {}).get("text", "")
@@ -171,7 +177,7 @@ if __name__ == "__main__":
 
         ids = tokenizer(text, padding=False, truncation=False, add_special_tokens=False)["input_ids"]
         len = len(ids)
-        key2sample[audio_file] = {"audio_file": audio_file, "text": text, "ids": ids, "lang": lang, "split": split, "len": len}
+        key2sample[audio_file] = {"audio_file": audio_file, "text": text, "ids": ids, "lang": slang, "split": split, "len": len}
 
     if len (key2sample) == 0:
         logger.info("No samples to process after filtering.")
