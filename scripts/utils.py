@@ -198,6 +198,6 @@ def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\
     stats['duration_avg'] = stats.get('duration_sum', 0) / len(samples) if samples else 0.0
     logger.info(f"samples: {len(samples)}")
     for k in sorted(stats.keys()): # traverse stats lexicographically sorted by key and log content
-        logger.info(f"{k}: {stats[k]}")
+        logger.info(f"{k}: {stats[k]:.2f}") if isinstance(stats[k], float) else logger.info(f"{k}: {stats[k]}")
 
     return samples
