@@ -140,7 +140,6 @@ def save_sorted_samples(samples, embedder_path, batch_size, bucket_size, json_pa
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Cache audio embeddings as .pt files from JSON (bucketed)")
     parser.add_argument("--json_path", type=str, required=True, help="JSON file with audio metadata")
-    # parser.add_argument("--cache_dir", type=str, required=True, help="Directory to store bucket .pt files and meta.json")
     parser.add_argument("--embedder_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/openai/whisper-medium")
     parser.add_argument("--tokenizer_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct")
     #correct the next line
@@ -154,8 +153,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
-
-    cache_dir = args.json_path + "_cache"
 
     #################################################################################
     ### Compute tokenized lengths and sort samples by length (shortest → longest) ###
@@ -231,6 +228,6 @@ if __name__ == "__main__":
         combinations_samples = [s for s in key2sample.values() if (args.split is None or s['split'] == split) and (args.slang is None or s['slang'] == slang) and (args.tlang is None or s['tlang'] == tlang)]
         combinations_samples.sort(key=lambda x: (x["len"], x["audio_file"])) # sort by tokenized length, then by audio file name for tie-breaking
         logger.info(f"Combination (split={split}, slang={slang}, tlang={tlang}): {len(combinations_samples)} samples")
-        odir = os.path.join(cache_dir, f"{split}/{slang}/{tlang}")
-        save_sorted_samples(combinations_samples, args.embedder_path, args.batch_size, args.bucket_size, args.json_path, odir, args.tokenizer_path, args.device, args.dtype)
+        cache_dir = os.path.join(args.json_path + "_cache", f"{split}/{slang}/{tlang}")
+        save_sorted_samples(combinations_samples, args.embedder_path, args.batch_size, args.bucket_size, args.json_path, cache_dir, args.tokenizer_path, args.device, args.dtype)
 
