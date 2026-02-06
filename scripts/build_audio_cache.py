@@ -177,7 +177,7 @@ if __name__ == "__main__":
 
         ids = tokenizer(text, padding=False, truncation=False, add_special_tokens=False)["input_ids"]
         len = len(ids)
-        key2sample[audio_file] = {"audio_file": audio_file, "text": text, "ids": ids, "lang": slang, "split": split, "len": len}
+        key2sample[audio_file] = {"audio_file": audio_file, "text": text, "ids": ids, "slang": slang, "tlang": tlang, "split": split, "len": len}
 
     if len (key2sample) == 0:
         logger.info("No samples to process after filtering.")
