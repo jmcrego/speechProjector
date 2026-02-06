@@ -204,15 +204,15 @@ if __name__ == "__main__":
         samples_triplets.append({"audio_file": audio_file, "text": text, "translation": translation_text, "ids": ids, "slang": slang, "tlang": tlang, "split": split, "len": len(ids)})
         unique_audio_files.add(audio_file)
 
-    if len (samples_triplets) == 0:
-        logger.info("No samples to process after filtering.")
-        sys.exit(0)
-
     logger.info(f"Found {len(unique_audio_files)} unique audio files after filtering")
     logger.info(f"Splits: {splits}")
     logger.info(f"slangs: {slangs}")
     logger.info(f"tlangs: {tlangs}")
     logger.info(f"Combinations: {combinations}")
+
+    if len (samples_triplets) == 0:
+        logger.info("No samples to process after filtering.")
+        sys.exit(0)
 
     #################################################################################
     ### Save audio embeddings in bucketed .pt files #################################
