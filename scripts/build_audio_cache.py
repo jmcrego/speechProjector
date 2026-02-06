@@ -155,8 +155,8 @@ if __name__ == "__main__":
     if args.type not in ["ast", "asr"]:
         logger.error(f"Invalid type {args.type}, must be 'ast' or 'asr'")
         sys.exit(1)
-        
-    logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
+
+    logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler(), logging.FileHandler(f"{args.json_path}.{args.type}.log", mode='a', encoding='utf-8')])
 
     #################################################################################
     ### Compute tokenized lengths and sort samples by length (shortest → longest) ###
