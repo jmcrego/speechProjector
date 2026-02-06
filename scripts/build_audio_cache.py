@@ -62,6 +62,7 @@ def save_bucket(samples, bucket, cache_dir, bucket_id):
         samples[idx]["offset"] = i
         #not used: samples[idx]["n_audio_embs"] = embs.shape[1]  # T
 
+
 def save_sorted_samples(audio_embedder, samples, embedder_path, batch_size, bucket_size, json_path, cache_dir, tokenizer_path, device, torch_dtype):
     # embed (batch_size) samples and save embeddings in files containing bucket_size samples
     batch_indices = []
@@ -165,6 +166,7 @@ if __name__ == "__main__":
     slangs = set()
     tlangs = set()
     combinations = set() # set of (split, slang, tlang) combinations found in the data after filtering
+    unique_audio_files = set() # for logging purposes only
 
     for s in tqdm(samples, total=len(samples), desc="Tokenizing text", unit=" sample"):
         audio_file = s.get("audio_file", "")
@@ -200,12 +202,13 @@ if __name__ == "__main__":
 
         ids = tokenizer(text, padding=False, truncation=False, add_special_tokens=False)["input_ids"]
         samples_triplets.append({"audio_file": audio_file, "text": text, "translation": translation_text, "ids": ids, "slang": slang, "tlang": tlang, "split": split, "len": len(ids)})
+        unique_audio_files.add(audio_file)
 
     if len (samples_triplets) == 0:
         logger.info("No samples to process after filtering.")
         sys.exit(0)
 
-    logger.info(f"Found {len(samples_triplets)} triplets audio files (split/slang/tlang)")
+    logger.info(f"Found {len(unique_audio_files)} unique audio files after filtering")
     logger.info(f"Splits: {splits}")
     logger.info(f"slangs: {slangs}")
     logger.info(f"tlangs: {tlangs}")
