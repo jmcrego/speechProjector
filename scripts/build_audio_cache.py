@@ -172,6 +172,7 @@ if __name__ == "__main__":
     splits = set()
     slangs = set()
     tlangs = set()
+    combinations = set() # set of (split, slang, tlang) combinations found in the data after filtering
 
     for s in tqdm(samples, total=len(samples), desc="Tokenizing text", unit=" sample"):
         audio_file = s.get("audio_file", "")
@@ -204,6 +205,7 @@ if __name__ == "__main__":
         splits.add(split)
         slangs.add(slang)
         tlangs.add(tlang)
+        combinations.add((split, slang, tlang))
 
         ids = tokenizer(text, padding=False, truncation=False, add_special_tokens=False)["input_ids"]
         key2sample[audio_file] = {"audio_file": audio_file, "text": text, "ids": ids, "slang": slang, "tlang": tlang, "split": split, "len": len(ids)}
@@ -216,12 +218,12 @@ if __name__ == "__main__":
     logger.info(f"Splits: {splits}")
     logger.info(f"slangs: {slangs}")
     logger.info(f"tlangs: {tlangs}")
+    logger.info(f"Combinations: {combinations}")
 
     #################################################################################
     ### Save audio embeddings in bucketed .pt files #################################
     #################################################################################
 
-    combinations = list(product(splits, slangs, tlangs))
     logger.info(f"Split-Slang-Tlang combinations: {combinations}")
     for split, slang, tlang in combinations:
         combinations_samples = [s for s in key2sample.values() if (args.split is None or s['split'] == split) and (args.slang is None or s['slang'] == slang) and (args.tlang is None or s['tlang'] == tlang)]
