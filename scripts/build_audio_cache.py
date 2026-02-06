@@ -152,6 +152,10 @@ if __name__ == "__main__":
     parser.add_argument("--type", type=str, default="ast", help="Type of corpora (ast or asr)")
     args = parser.parse_args()
 
+    if args.type not in ["ast", "asr"]:
+        logger.error(f"Invalid type {args.type}, must be 'ast' or 'asr'")
+        sys.exit(1)
+        
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
     #################################################################################
