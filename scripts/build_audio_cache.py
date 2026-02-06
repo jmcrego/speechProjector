@@ -159,7 +159,7 @@ if __name__ == "__main__":
     logger.info(f"Read {len(samples)} samples from {args.json_path} with split={args.split}, slang={args.slang}, tlang={args.tlang}")
 
     # Compute tokenized lengths
-    key2sample = defaultdict(dict)
+    samples_triplets = []
 
     splits = set()
     slangs = set()
@@ -170,9 +170,6 @@ if __name__ == "__main__":
         audio_file = s.get("audio_file", "")
 
         if not isinstance(audio_file, str) or not audio_file.strip():
-            continue
-
-        if audio_file in key2sample:
             continue
 
         split = s.get("split", "None")
@@ -200,13 +197,13 @@ if __name__ == "__main__":
         combinations.add((split, slang, tlang))
 
         ids = tokenizer(text, padding=False, truncation=False, add_special_tokens=False)["input_ids"]
-        key2sample[audio_file] = {"audio_file": audio_file, "text": text, "ids": ids, "slang": slang, "tlang": tlang, "split": split, "len": len(ids)}
+        samples_triplets.append({"audio_file": audio_file, "text": text, "ids": ids, "slang": slang, "tlang": tlang, "split": split, "len": len(ids)})
 
-    if len (key2sample) == 0:
+    if len (samples_triplets) == 0:
         logger.info("No samples to process after filtering.")
         sys.exit(0)
 
-    logger.info(f"Found {len(samples)} unique audio files with valid transcriptions after tokenization.")
+    logger.info(f"Found {len(samples_triplets)} unique audio files with valid transcriptions after tokenization.")
     logger.info(f"Splits: {splits}")
     logger.info(f"slangs: {slangs}")
     logger.info(f"tlangs: {tlangs}")
@@ -224,7 +221,7 @@ if __name__ == "__main__":
     audio_embedder.eval()
 
     for split, slang, tlang in combinations:
-        combinations_samples = [s for s in key2sample.values() if (args.split is None or s['split'] == split) and (args.slang is None or s['slang'] == slang) and (args.tlang is None or s['tlang'] == tlang)]
+        combinations_samples = [s for s in samples_triplets if (args.split is None or s['split'] == split) and (args.slang is None or s['slang'] == slang) and (args.tlang is None or s['tlang'] == tlang)]
         combinations_samples.sort(key=lambda x: (x["len"], x["audio_file"])) # sort by tokenized length, then by audio file name for tie-breaking
         logger.info(f"Combination (split={split}, slang={slang}, tlang={tlang}): {len(combinations_samples)} samples")
         save_sorted_samples(
