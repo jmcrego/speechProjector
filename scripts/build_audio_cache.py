@@ -182,17 +182,17 @@ if __name__ == "__main__":
         if audio_file in key2sample:
             continue
 
-        split = s.get("split", "")
+        split = s.get("split", "None")
         if args.split:
             if split != args.split:
                 continue
 
-        slang = s.get("transcription", {}).get("lang", "")
+        slang = s.get("transcription", {}).get("lang", "None")
         if args.slang:
             if slang != args.slang:
                 continue
 
-        tlang = s.get("translation", {}).get("lang", "")
+        tlang = s.get("translation", {}).get("lang", "None")
         if args.tlang:
             if tlang != args.tlang:
                 continue
