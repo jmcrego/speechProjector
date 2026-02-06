@@ -223,7 +223,6 @@ if __name__ == "__main__":
     ### Save audio embeddings in bucketed .pt files #################################
     #################################################################################
 
-    logger.info(f"Split-Slang-Tlang combinations: {combinations}")
     for split, slang, tlang in combinations:
         combinations_samples = [s for s in key2sample.values() if (args.split is None or s['split'] == split) and (args.slang is None or s['slang'] == slang) and (args.tlang is None or s['tlang'] == tlang)]
         combinations_samples.sort(key=lambda x: (x["len"], x["audio_file"])) # sort by tokenized length, then by audio file name for tie-breaking
