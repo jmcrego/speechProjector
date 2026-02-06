@@ -191,13 +191,15 @@ if __name__ == "__main__":
         if not isinstance(text, str) or not text.strip():
             continue
 
+        translation_text = s.get("translation", {}).get("text", "")
+
         splits.add(split)
         slangs.add(slang)
         tlangs.add(tlang)
         combinations.add((split, slang, tlang))
 
         ids = tokenizer(text, padding=False, truncation=False, add_special_tokens=False)["input_ids"]
-        samples_triplets.append({"audio_file": audio_file, "text": text, "ids": ids, "slang": slang, "tlang": tlang, "split": split, "len": len(ids)})
+        samples_triplets.append({"audio_file": audio_file, "text": text, "translation": translation_text, "ids": ids, "slang": slang, "tlang": tlang, "split": split, "len": len(ids)})
 
     if len (samples_triplets) == 0:
         logger.info("No samples to process after filtering.")
