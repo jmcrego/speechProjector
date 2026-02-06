@@ -242,7 +242,7 @@ if __name__ == "__main__":
             args.batch_size, 
             args.bucket_size, 
             args.json_path, 
-            os.path.join(args.json_path + "_cache", f"{split}/{slang}/{tlang}"), 
+            os.path.join(args.json_path + "_cache" + args.type, f"{split}/{slang}/{tlang}"), 
             args.tokenizer_path, 
             args.device, 
             torch_dtype
