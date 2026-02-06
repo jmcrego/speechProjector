@@ -11,7 +11,7 @@ from collections import defaultdict
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from Dataset import read_samples_from_jsonl
+from scripts.utils import read_samples_from_jsonl
 from Embedder import Embedder
 
 logger = logging.getLogger("build_audio_cache")
