@@ -141,7 +141,7 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path, use_fast=True)
 
     # Read JSON samples
-    samples = read_samples_from_jsonl(args.json_path, split=args.split, slang=args.lang, tlang=args.tlang)
+    samples = read_samples_from_jsonl(args.json_path, split=args.split, slang=args.slang, tlang=args.tlang)
     logger.info(f"Read {len(samples)} samples from {args.json_path} with split={args.split}, slang={args.slang}, tlang={args.tlang}")
 
     # Compute tokenized lengths
