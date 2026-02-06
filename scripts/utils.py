@@ -6,7 +6,7 @@ from datetime import datetime
 import torch
 import soxr
 import logging
-import tqdm
+from tqdm import tqdm
 import numpy as np
 import soundfile as sf
 from collections import defaultdict
@@ -189,7 +189,7 @@ def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\
                 continue                
 
             entry["duration"] = info.duration
-            
+
             stats['duration_sum'] += info.duration
             stats['duration_max'] = max(stats.get('duration_max', 0), info.duration)
             stats['duration_min'] = min(stats.get('duration_min', float('inf')), info.duration)
