@@ -136,7 +136,7 @@ def save_sorted_samples(audio_embedder, samples, embedder_path, batch_size, buck
         for s in samples:
             f.write(json.dumps(s, ensure_ascii=False) + "\n")
 
-    logger.info(f"Saved {meta_path}")
+    logger.info(f"Saved {meta_path} {samples_path}")
 
 
 
