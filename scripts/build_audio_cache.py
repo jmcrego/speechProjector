@@ -226,9 +226,13 @@ if __name__ == "__main__":
     audio_embedder.eval()
 
     for split, slang, tlang in combinations:
-        combinations_samples = [s for s in samples_triplets if (args.split is None or s['split'] == split) and (args.slang is None or s['slang'] == slang) and (args.tlang is None or s['tlang'] == tlang)]
-        combinations_samples.sort(key=lambda x: (x["len"], x["audio_file"])) # sort by tokenized length, then by audio file name for tie-breaking
-        logger.info(f"Combination (split={split}, slang={slang}, tlang={tlang}): {len(combinations_samples)} samples")
+        combinations_samples = [
+            s for s in samples_triplets
+            if s['split'] == split and s['slang'] == slang and s['tlang'] == tlang
+        ]
+        combinations_samples.sort(key=lambda x: (x["len"], x["audio_file"]))
+        logger.info(f"Combination (split={split}, {slang}-{tlang}): {len(combinations_samples)} samples")
+
         save_sorted_samples(
             audio_embedder, 
             combinations_samples, 
