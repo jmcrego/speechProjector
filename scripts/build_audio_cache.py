@@ -145,14 +145,11 @@ if __name__ == "__main__":
     parser.add_argument("--json_path", type=str, required=True, help="JSON file with audio metadata")
     parser.add_argument("--embedder_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/openai/whisper-medium")
     parser.add_argument("--tokenizer_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct")
-    #correct the next line
-    parser.add_argument("--split", type=str, default=None, help="Split to use (use all if not given)")
-    parser.add_argument("--slang", type=str, default=None, help="Transcription language to use (use all if not given)")
-    parser.add_argument("--tlang", type=str, default=None, help="Translation language to use (use all if not given)")
     parser.add_argument("--device", type=str, default="cuda", help="Device for embeddings")
     parser.add_argument("--dtype", type=str, default="float16", help="Torch dtype for embeddings")
     parser.add_argument("--batch_size", type=int, default=256, help="Number of samples to fed to embedder")
     parser.add_argument("--bucket_size", type=int, default=256, help="Number of samples per saved bucket")
+    parser.add_argument("--type", type=str, default="ast", help="Type of corpora (ast or asr)")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
@@ -165,8 +162,8 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path, use_fast=True)
 
     # Read JSON samples
-    samples = read_samples_from_jsonl(args.json_path, split=args.split, slang=args.slang, tlang=args.tlang)
-    logger.info(f"Read {len(samples)} samples from {args.json_path} with split={args.split}, slang={args.slang}, tlang={args.tlang}")
+    samples = read_samples_from_jsonl(args.json_path)
+    logger.info(f"Read {len(samples)} samples from {args.json_path}")
 
     # Compute tokenized lengths
     samples_triplets = []
@@ -179,30 +176,25 @@ if __name__ == "__main__":
 
     for s in tqdm(samples, total=len(samples), desc="Tokenizing text", unit=" sample"):
         audio_file = s.get("audio_file", "")
-
         if not isinstance(audio_file, str) or not audio_file.strip():
             continue
-
-        split = s.get("split", "None")
-        if args.split:
-            if split != args.split:
-                continue
-
-        slang = s.get("transcription", {}).get("lang", "None")
-        if args.slang:
-            if slang != args.slang:
-                continue
-
-        tlang = s.get("translation", {}).get("lang", "None")
-        if args.tlang:
-            if tlang != args.tlang:
-                continue
 
         text = s.get("transcription", {}).get("text", "")
         if not isinstance(text, str) or not text.strip():
             continue
 
+        split = s.get("split", "None")
+        slang = s.get("transcription", {}).get("lang", "None")
+        tlang = s.get("translation", {}).get("lang", "None")
         translation_text = s.get("translation", {}).get("text", "")
+
+        if args.type == "asr":
+            if audio_file in unique_audio_files:
+                continue
+            tlang = "None"
+            translation_text = ""
+
+        unique_audio_files.add(audio_file)
 
         splits.add(split)
         slangs.add(slang)
@@ -211,7 +203,6 @@ if __name__ == "__main__":
 
         ids = tokenizer(text, padding=False, truncation=False, add_special_tokens=False)["input_ids"]
         samples_triplets.append({"audio_file": audio_file, "text": text, "translation": translation_text, "ids": ids, "slang": slang, "tlang": tlang, "split": split, "len": len(ids)})
-        unique_audio_files.add(audio_file)
 
     logger.info(f"Found {len(unique_audio_files)} unique audio files after filtering")
     logger.info(f"Splits: {splits}")
