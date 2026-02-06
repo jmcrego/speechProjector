@@ -62,7 +62,7 @@ def save_bucket(samples, bucket, cache_dir, bucket_id):
         samples[idx]["offset"] = i
         #not used: samples[idx]["n_audio_embs"] = embs.shape[1]  # T
 
-def save_sorted_samples(samples, embedder_path, batch_size, bucket_size, json_path, cache_dir, tokenizer_path, device, dtype):
+def save_sorted_samples(audio_embedder, samples, embedder_path, batch_size, bucket_size, json_path, cache_dir, tokenizer_path, device, torch_dtype):
     # embed (batch_size) samples and save embeddings in files containing bucket_size samples
     batch_indices = []
     bucket = []
@@ -75,13 +75,6 @@ def save_sorted_samples(samples, embedder_path, batch_size, bucket_size, json_pa
         return
 
     os.makedirs(cache_dir, exist_ok=True)
-
-    torch_dtype = getattr(torch, dtype)
-
-    # Initialize embedder
-    audio_embedder = Embedder(config={'path': embedder_path})
-    audio_embedder.to(device, dtype=torch_dtype)
-    audio_embedder.eval()
 
     for idx in tqdm(range(len(samples)), total=len(samples), desc="Embedding audio", unit=" sample"):
 
@@ -128,7 +121,7 @@ def save_sorted_samples(samples, embedder_path, batch_size, bucket_size, json_pa
         "cache_dir": cache_dir,
         "embedder_path": embedder_path,
         "tokenizer_path": tokenizer_path,
-        "dtype": dtype,
+        "dtype": str(torch_dtype),
         "bucket_size": bucket_size,
     }
     with open(meta_path, "w", encoding="utf-8") as f:
@@ -223,10 +216,27 @@ if __name__ == "__main__":
     ### Save audio embeddings in bucketed .pt files #################################
     #################################################################################
 
+    torch_dtype = getattr(torch, args.dtype)
+
+    # Initialize embedder
+    audio_embedder = Embedder(config={'path': args.embedder_path})
+    audio_embedder.to(args.device, dtype=torch_dtype)
+    audio_embedder.eval()
+
     for split, slang, tlang in combinations:
         combinations_samples = [s for s in key2sample.values() if (args.split is None or s['split'] == split) and (args.slang is None or s['slang'] == slang) and (args.tlang is None or s['tlang'] == tlang)]
         combinations_samples.sort(key=lambda x: (x["len"], x["audio_file"])) # sort by tokenized length, then by audio file name for tie-breaking
         logger.info(f"Combination (split={split}, slang={slang}, tlang={tlang}): {len(combinations_samples)} samples")
-        cache_dir = os.path.join(args.json_path + "_cache", f"{split}/{slang}/{tlang}")
-        save_sorted_samples(combinations_samples, args.embedder_path, args.batch_size, args.bucket_size, args.json_path, cache_dir, args.tokenizer_path, args.device, args.dtype)
+        save_sorted_samples(
+            audio_embedder, 
+            combinations_samples, 
+            args.embedder_path, 
+            args.batch_size, 
+            args.bucket_size, 
+            args.json_path, 
+            os.path.join(args.json_path + "_cache", f"{split}/{slang}/{tlang}"), 
+            args.tokenizer_path, 
+            args.device, 
+            torch_dtype
+        )
 
