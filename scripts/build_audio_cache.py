@@ -125,8 +125,17 @@ def save_sorted_samples(audio_embedder, samples, embedder_path, batch_size, buck
         "dtype": str(torch_dtype),
         "bucket_size": bucket_size,
     }
+
+    # meta.json
     with open(meta_path, "w", encoding="utf-8") as f:
-        json.dump({"info": info, "samples": samples}, f, ensure_ascii=False)
+        json.dump(info, f, ensure_ascii=False, indent=2)
+
+    # samples.jsonl
+    samples_path = os.path.join(cache_dir, "samples.jsonl")
+    with open(samples_path, "w", encoding="utf-8") as f:
+        for s in samples:
+            f.write(json.dumps(s, ensure_ascii=False) + "\n")
+
     logger.info(f"Saved {meta_path}")
 
 
