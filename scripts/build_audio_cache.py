@@ -189,8 +189,6 @@ if __name__ == "__main__":
     samples.sort(key=lambda x: x["len"])
     logger.info(f"Sorted {len(samples)} samples by tokenized length. Shortest len={samples[0]['len']}, longest len={samples[-1]['len']}")
 
-    sys.exit(0)
-
     os.makedirs(args.cache_dir, exist_ok=True)
 
     #################################################################################
