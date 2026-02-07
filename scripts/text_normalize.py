@@ -11,6 +11,12 @@ def remove_punctuation(text: str) -> str:
         if not unicodedata.category(ch).startswith("P")
     )
 
+# café → cafe, naïve → naive, coöperate → cooperate
+def remove_diacritics(text):
+    return "".join(
+        ch for ch in unicodedata.normalize("NFD", text)
+        if unicodedata.category(ch) != "Mn"
+    )
 
 def normalize_text(text: str) -> str:
     if not isinstance(text, str):
@@ -30,6 +36,9 @@ def normalize_text(text: str) -> str:
 
     # Some HTML entities turn into non-breaking spaces
     text = text.replace("\u00a0", " ")
+
+    # keep only valid Unicode characters (remove invalid byte sequences)
+    text = text.encode("utf-8", "ignore").decode("utf-8", "ignore")
 
     # 5. Remove punctuation (Unicode-aware)
     text = remove_punctuation(text)
@@ -57,4 +66,3 @@ if __name__ == "__main__":
         print(f"Orig: {l}")
         print(f"Norm: {normalize_text(l)}")
     f.close() if args.input_file else None
-    
