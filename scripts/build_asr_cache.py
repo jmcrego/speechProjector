@@ -122,7 +122,7 @@ def filter_and_group_samples(samples):
     slangs = set()
     stats = defaultdict(int)
 
-    for s in tqdm(samples, total=len(samples), desc="Tokenizing text", unit=" sample"):
+    for s in tqdm(samples, total=len(samples), desc="Filtering samples", unit=" sample"):
         audio_file = s.get("audio_file", "")
         if not isinstance(audio_file, str) or not audio_file.strip():
             stats['empty_audio_file'] += 1
@@ -160,14 +160,6 @@ def filter_and_group_samples(samples):
     logger.info(f"Splits: {splits}")
     logger.info(f"slangs: {slangs}")
 
-    ### log combinations and their counts, sorted by value (count) descending and then by split and slang lexicographically ascending
-    combinations = list(combination2samples.keys())
-    combinations.sort(key=lambda x: (len(combination2samples[x]), x[0], x[1]), reverse=True)
-    logger.info("Combinations (split, slang) and their counts:")
-    for split, slang in combinations:
-        count = len(combination2samples[(split, slang)])
-        logger.info(f"  ({split}, {slang}): {count} samples")    
-
     return combination2samples
 
 
@@ -195,9 +187,15 @@ if __name__ == "__main__":
 
     # Read JSON samples
     samples = read_samples_from_jsonl(args.json_path)
-    # logger.info(f"Read {len(samples)} samples from {args.json_path}")
 
     combination2samples = filter_and_group_samples(samples)
+    ### log combinations and their counts, sorted by value (count) descending and then by split and slang lexicographically ascending
+    combinations = list(combination2samples.keys())
+    combinations.sort(key=lambda x: (len(combination2samples[x]), x[0], x[1]), reverse=True)
+    logger.info("Combinations (split, slang) and their counts:")
+    for split, slang in combinations:
+        count = len(combination2samples[(split, slang)])
+        logger.info(f"  ({split}, {slang}): {count} samples")    
 
     if len (combination2samples) == 0:
         logger.info("No samples to process after filtering.")
@@ -210,10 +208,11 @@ if __name__ == "__main__":
     audio_embedder.to(args.device, dtype=torch_dtype)
     audio_embedder.eval()
 
-    for idx, (split, slang) in enumerate(combination2samples.keys(), 1):
+    for idx, (split, slang) in enumerate(combinations, 1):
         combination_samples = combination2samples[(split, slang)]
-        # combination_samples.sort(key=lambda x: (x["len"], x["audio_file"]))
         logger.info(f"Combination {idx}/{len(combination2samples.keys())} ({split}, {slang}): {len(combination_samples)} samples")
+
+        # combination_samples.sort(key=lambda x: (x["len"], x["audio_file"]))
 
         cache_dir = os.path.join(args.json_path + "_CACHE_ASR", f"{split}/{slang}")
         if os.path.exists(os.path.join(cache_dir, "meta.json")):
@@ -238,7 +237,7 @@ if __name__ == "__main__":
         with open(meta_path, "w", encoding="utf-8") as f:
             json.dump(info, f, ensure_ascii=False, indent=2)
 
-        # samples.jsonl
+        # Save samples.jsonl
         with open(samples_path, "w", encoding="utf-8") as f:
             for s in samples:
                 f.write(json.dumps(s, ensure_ascii=False) + "\n")
