@@ -58,7 +58,7 @@ def normalize_text(text: str) -> str:
     text = remove_brackets(text)
 
     # Remove punctuation (Unicode-aware)
-    # text = remove_punctuation(text)
+    text = remove_punctuation(text)
 
     # Normalize whitespace
     text = re.sub(r"\s+", " ", text).strip()
