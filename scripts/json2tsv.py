@@ -2,7 +2,7 @@ import json
 import csv
 import sys
 
-def jsonl_to_tsv(json_path, keys=None):
+def jsonl_to_tsv(json_path: str, keys: list[str] = []):
 
     writer = csv.writer(sys.stdout, delimiter="\t", quoting=csv.QUOTE_MINIMAL)
     with open(json_path, "r", encoding="utf-8") as f:
@@ -11,7 +11,7 @@ def jsonl_to_tsv(json_path, keys=None):
             sample = json.loads(line)
 
             if header is None:
-                header = keys if keys is not None else sample.keys()
+                header = keys if keys else sample.keys()
                 writer.writerow(header)
 
             row = [sample.get(col, "") for col in header]
