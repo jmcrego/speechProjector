@@ -7,6 +7,29 @@ logger = logging.getLogger(__name__)
 
 pattern_brackets = re.compile(r"[\(\[\{].*?[\)\]\}]")    
 
+currency_map = {
+    "$": "dollars",
+    "€": "euros",
+    "£": "pounds",
+    "¥": "yen",
+    "₹": "rupees",
+    "₩": "won",
+    "₽": "rubles",
+    "₺": "lira",
+    "₫": "dong",
+    "₴": "hryvnia",
+    "₦": "naira",
+    "₱": "peso",
+    "₲": "guarani",
+    "₳": "austral",
+    "₵": "cedi",
+    "₸": "tenge",
+    "₼": "manat",
+    "₽": "ruble",
+    "₾": "lari",
+    "₿": "bitcoin",
+}
+
 # Carefully chosen punctuation set (Unicode categories starting with P)
 # We remove characters classified as punctuation by Unicode
 def remove_punctuation(text: str) -> str:
@@ -16,19 +39,21 @@ def remove_punctuation(text: str) -> str:
     )
 
 # café → cafe, naïve → naive, coöperate → cooperate
-def remove_diacritics(text):
-    return "".join(
-        ch for ch in unicodedata.normalize("NFD", text)
-        if unicodedata.category(ch) != "Mn"
-    )
+# def remove_diacritics(text):
+#     return "".join(
+#         ch for ch in unicodedata.normalize("NFD", text)
+#         if unicodedata.category(ch) != "Mn"
+#     )
 
 def remove_brackets(text):
-    # Remove content within (), [], {}, and the brackets themselves, log removed content for debugging
     def replacer(match):
         content = match.group(0)
         logger.debug(f"Removing bracketed content: {content} from text: {text}")
         return " "
-    # This regex matches any content within (), [], {}, including nested ones (non-greedy match)
+    # This regex matches any content within (), [], {}, including nested ones (non-greedy match). It will remove the brackets and their content.
+    # Note: This will not handle nested brackets of the same type correctly (e.g., "This is (a test (with nested) brackets) example"), 
+    # but it will handle different types of brackets nested within each other (e.g., "This is [a test (with nested) brackets] example").
+    # For structures with multiple non-overlapped labels like "This is (a test) and [another test] example", it will remove both "(a test)" and "[another test]" correctly.
     text = pattern_brackets.sub(replacer, text)
     return text
 
@@ -39,6 +64,12 @@ def remove_html(text):
     text = html.unescape(text)
     # Some HTML entities turn into non-breaking spaces
     text = text.replace("\u00a0", " ")
+    return text
+
+def replace_currency(text: str) -> str:
+    # Replace currency symbols with their names (e.g., $ → dollars, € → euros)
+    for symbol, name in currency_map.items():
+        text = text.replace(symbol, f" {name} ")
     return text
 
 def normalize_text(text: str) -> str:
@@ -60,6 +91,9 @@ def normalize_text(text: str) -> str:
     # Remove string within brackets (e.g., [noise], (laughter), {music})
     text = remove_brackets(text)
 
+    # Replace currency symbols with their names (e.g., $ → dollars, € → euros)
+    text = replace_currency(text)
+
     # Remove punctuation (Unicode-aware)
     text = remove_punctuation(text)
 
@@ -67,7 +101,6 @@ def normalize_text(text: str) -> str:
     text = re.sub(r"\s+", " ", text).strip()
 
     return text
-
 
 if __name__ == "__main__":
     import argparse
