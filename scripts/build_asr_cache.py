@@ -139,6 +139,7 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path, use_fast=True)
 
     # Read JSON samples
+    logger.info("-"* 80 + f" Reading samples from {args.json_path} " + "-"* 80)
     data = read_samples_from_jsonl(args.json_path)
     logger.info(f"Read {len(data)} samples from {args.json_path}")
 
@@ -150,6 +151,7 @@ if __name__ == "__main__":
     combinations = set() # set of (split, slang) combinations found in the data after filtering
     unique_audio_files = set() 
 
+    logger.info("-"* 80 + f" Filtering samples " + "-"* 80)
     for s in tqdm(data, total=len(data), desc="Tokenizing text", unit=" sample"):
         audio_file = s.get("audio_file", "")
         if not isinstance(audio_file, str) or not audio_file.strip():
@@ -195,6 +197,7 @@ if __name__ == "__main__":
     audio_embedder.to(args.device, dtype=torch_dtype)
     audio_embedder.eval()
 
+    logger.info("-"* 80 + f" Embedding/saving samples " + "-"* 80)
     idx = 0
     for split, slang in combinations:
         idx += 1
