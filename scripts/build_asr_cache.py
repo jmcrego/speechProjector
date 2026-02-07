@@ -63,7 +63,7 @@ def save_bucket(samples, bucket, cache_dir, bucket_id):
         #not used: samples[idx]["n_audio_embs"] = embs.shape[1]  # T
 
 
-def save_sorted_samples(audio_embedder, samples, cache_dir, batch_size, bucket_size, device, torch_dtype):
+def save_samples(audio_embedder, samples, cache_dir, batch_size, bucket_size, device, torch_dtype):
     # embed (batch_size) samples and save embeddings in files containing bucket_size samples
     batch_indices = []
     bucket = []
@@ -175,7 +175,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Cache audio embeddings as .pt files from JSON (bucketed)")
     parser.add_argument("--json_path", type=str, required=True, help="JSON file with audio metadata")
     parser.add_argument("--embedder_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/openai/whisper-medium")
-    parser.add_argument("--tokenizer_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct")
+    # parser.add_argument("--tokenizer_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct")
     parser.add_argument("--device", type=str, default="cuda", help="Device for embeddings")
     parser.add_argument("--dtype", type=str, default="float16", help="Torch dtype for embeddings")
     parser.add_argument("--batch_size", type=int, default=256, help="Number of samples to fed to embedder")
@@ -210,29 +210,22 @@ if __name__ == "__main__":
     audio_embedder.to(args.device, dtype=torch_dtype)
     audio_embedder.eval()
 
-    idx = 0
     for idx, (split, slang) in enumerate(combination2samples.keys(), 1):
         combination_samples = combination2samples[(split, slang)]
         # combination_samples.sort(key=lambda x: (x["len"], x["audio_file"]))
-        logger.info(f"Combination {idx+1}/{len(combination2samples.keys())} ({split}, {slang}): {len(combination_samples)} samples")
+        logger.info(f"Combination {idx}/{len(combination2samples.keys())} ({split}, {slang}): {len(combination_samples)} samples")
 
         cache_dir = os.path.join(args.json_path + "_CACHE_ASR", f"{split}/{slang}")
         if os.path.exists(os.path.join(cache_dir, "meta.json")):
             logger.info(f"Cache directory {cache_dir} already contains meta.json, skipping embedding/saving")
             continue
 
-        samples = save_sorted_samples(
-            audio_embedder, 
-            combination_samples, 
-            cache_dir,
-            args.batch_size, 
-            args.bucket_size, 
-            args.device, 
-            torch_dtype
-        )
+        samples = save_samples(audio_embedder, combination_samples, cache_dir, args.batch_size, args.bucket_size, args.device, torch_dtype)
+
+        meta_path = os.path.join(cache_dir, "meta.json")
+        samples_path = os.path.join(cache_dir, "samples.jsonl")
 
         # Save meta.json
-        meta_path = os.path.join(cache_dir, "meta.json")
         info = {
             "json_path": args.json_path,
             "cache_dir": cache_dir,
@@ -242,13 +235,10 @@ if __name__ == "__main__":
             "bucket_size": args.bucket_size,
             "dtype": args.dtype,
         }
-
-        # meta.json
         with open(meta_path, "w", encoding="utf-8") as f:
             json.dump(info, f, ensure_ascii=False, indent=2)
 
         # samples.jsonl
-        samples_path = os.path.join(cache_dir, "samples.jsonl")
         with open(samples_path, "w", encoding="utf-8") as f:
             for s in samples:
                 f.write(json.dumps(s, ensure_ascii=False) + "\n")
