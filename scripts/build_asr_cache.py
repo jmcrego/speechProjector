@@ -64,7 +64,7 @@ def save_bucket(samples, bucket, cache_dir, bucket_id):
         #not used: samples[idx]["n_audio_embs"] = embs.shape[1]  # T
 
 
-def save_sorted_samples(audio_embedder, samples, batch_size, bucket_size, cache_dir, device, torch_dtype):
+def save_sorted_samples(audio_embedder, samples, cache_dir, batch_size, bucket_size, device, torch_dtype):
     # embed (batch_size) samples and save embeddings in files containing bucket_size samples
     batch_indices = []
     bucket = []
@@ -199,18 +199,18 @@ if __name__ == "__main__":
         combination_samples.sort(key=lambda x: (x["len"], x["audio_file"]))
         logger.info(f"Combination {idx}/{len(combinations)} ({split}: {slang}): {len(combination_samples)} samples")
 
-        cache_dir = os.path.join(args.json_path + "_cache_asr", f"{split}/{slang}")
+        cache_dir = os.path.join(args.json_path + "_CACHE_ASR", f"{split}/{slang}")
 
         if os.path.exists(os.path.join(cache_dir, "meta.json")):
-            logger.info(f"Cache directory {cache_dir} already contains meta.json, skipping embedding and saving")
+            logger.info(f"Cache directory {cache_dir} already contains meta.json, skipping embedding/saving")
             continue
 
         samples = save_sorted_samples(
             audio_embedder, 
             combination_samples, 
+            cache_dir,
             args.batch_size, 
             args.bucket_size, 
-            cache_dir,
             args.device, 
             torch_dtype
         )
