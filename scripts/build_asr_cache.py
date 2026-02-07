@@ -149,7 +149,6 @@ if __name__ == "__main__":
     unique_audio_files = set() 
 
     logger.info("-"* 40 + f" Filtering samples " )
-    samples = []
     for s in tqdm(data, total=len(data), desc="Tokenizing text", unit=" sample"):
         audio_file = s.get("audio_file", "")
         if not isinstance(audio_file, str) or not audio_file.strip():
@@ -186,7 +185,7 @@ if __name__ == "__main__":
         count = len(combination2samples[(split, slang)])
         logger.info(f"  ({split}, {slang}): {count} samples")    
 
-    if len (samples) == 0:
+    if len (combination2samples) == 0:
         logger.info("No samples to process after filtering.")
         sys.exit(0)
 
