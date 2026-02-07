@@ -45,16 +45,21 @@ def remove_diacritics(text):
         if unicodedata.category(ch) != "Mn"
     )
 
-def remove_brackets(text):
+def remove_brackets(text, max_chars=100):
     def replacer(match):
         content = match.group(0)
         logger.debug(f"Removing brackets: {content}")
+        if len(content) > max_chars:
+            logger.warning(f"Brackets content too long ({len(content)} chars), removing entire sentence: {text}")
+            return "remove-entire-sentence"
         return " "
     # This regex matches any content within (), [], {}, including nested ones (non-greedy match). It will remove the brackets and their content.
     # Note: This will not handle nested brackets of the same type correctly (e.g., "This is (a test (with nested) brackets) example"), 
     # but it will handle different types of brackets nested within each other (e.g., "This is [a test (with nested) brackets] example").
     # For structures with multiple non-overlapped labels like "This is (a test) and [another test] example", it will remove both "(a test)" and "[another test]" correctly.
     text = pattern_brackets.sub(replacer, text)
+    if "remove-entire-sentence" in text:
+        return ""
     return text
 
 def remove_unescape_html(text):
@@ -86,7 +91,7 @@ def replace_currency(text: str) -> str:
         text = text.replace(symbol, f" {name} ")
     return text
 
-def normalize_text(text: str) -> str:
+def normalize_text(text: str, max_chars_brackets=100) -> str:
     if not isinstance(text, str):
         return ""
 
@@ -103,7 +108,7 @@ def normalize_text(text: str) -> str:
     text = text.encode("utf-8", "ignore").decode("utf-8", "ignore")
 
     # Remove string within brackets (e.g., [noise], (laughter), {music})
-    text = remove_brackets(text)
+    text = remove_brackets(text, max_chars=max_chars_brackets)
 
     # Replace currency symbols with their names (e.g., $ → dollars, € → euros)
     # text = replace_currency(text)
@@ -125,6 +130,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Test text normalization.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--input_file", type=str, help="Input file to normalize OR use stdin if not given")
+    parser.add_argument("--max-chars-brackets", type=int, default=100, help="Brackets content longer than this imply removing the sentence")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     args = parser.parse_args()
 
@@ -134,7 +140,7 @@ if __name__ == "__main__":
     for idx, l in enumerate(f):
         l = l.strip()
         # logger.debug(f"[src{idx}] {l}")
-        n = normalize_text(l)
+        n = normalize_text(l, max_chars_brackets=args.max_chars_brackets)
         print(f"{n}")
         # logger.debug(f"[tgt{idx}] {n}")
     f.close() if args.input_file else None
