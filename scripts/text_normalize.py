@@ -58,7 +58,8 @@ def remove_brackets(text, max_chars=100):
     # but it will handle different types of brackets nested within each other (e.g., "This is [a test (with nested) brackets] example").
     # For structures with multiple non-overlapped labels like "This is (a test) and [another test] example", it will remove both "(a test)" and "[another test]" correctly.
     text = pattern_brackets.sub(replacer, text)
-    logger.debug(f"Normalize: Remove brackets content: {contents}")
+    if contents:
+        logger.debug(f"Normalize: Remove brackets content: {contents}")
     if "Normalize: RemoveEntireSentence" in text:
         text = ""
     return text
