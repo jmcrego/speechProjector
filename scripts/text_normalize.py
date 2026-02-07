@@ -48,7 +48,7 @@ def remove_diacritics(text):
 def remove_brackets(text):
     def replacer(match):
         content = match.group(0)
-        logger.debug(f"Removing bracketed content: {content}")
+        logger.debug(f"Removing brackets: {content}")
         return " "
     # This regex matches any content within (), [], {}, including nested ones (non-greedy match). It will remove the brackets and their content.
     # Note: This will not handle nested brackets of the same type correctly (e.g., "This is (a test (with nested) brackets) example"), 
@@ -133,8 +133,8 @@ if __name__ == "__main__":
     f = open(args.input_file, "r", encoding="utf-8") if args.input_file else sys.stdin
     for idx, l in enumerate(f):
         l = l.strip()
-        logger.debug(f"[src{idx}] {l}")
+        # logger.debug(f"[src{idx}] {l}")
         n = normalize_text(l)
         print(f"{n}")
-        logger.debug(f"[tgt{idx}] {n}")
+        # logger.debug(f"[tgt{idx}] {n}")
     f.close() if args.input_file else None
