@@ -122,7 +122,6 @@ def filter_and_group_samples(samples):
     slangs = set()
     stats = defaultdict(int)
 
-    logger.info("-"* 40 + f" Filtering samples " )
     for s in tqdm(samples, total=len(samples), desc="Tokenizing text", unit=" sample"):
         audio_file = s.get("audio_file", "")
         if not isinstance(audio_file, str) or not audio_file.strip():
@@ -195,9 +194,8 @@ if __name__ == "__main__":
     # tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path, use_fast=True)
 
     # Read JSON samples
-    logger.info("-"* 40 + f" Reading samples from {args.json_path} ")
     samples = read_samples_from_jsonl(args.json_path)
-    logger.info(f"Read {len(samples)} samples from {args.json_path}")
+    # logger.info(f"Read {len(samples)} samples from {args.json_path}")
 
     combination2samples = filter_and_group_samples(samples)
 
@@ -205,22 +203,20 @@ if __name__ == "__main__":
         logger.info("No samples to process after filtering.")
         sys.exit(0)
 
-    torch_dtype = getattr(torch, args.dtype)
 
     # Initialize embedder
+    torch_dtype = getattr(torch, args.dtype)
     audio_embedder = Embedder(config={'path': args.embedder_path})
     audio_embedder.to(args.device, dtype=torch_dtype)
     audio_embedder.eval()
 
-    logger.info("-"* 40 + f" Embedding/saving samples ")
     idx = 0
-    for split, slang in combination2samples.keys():
-        idx += 1
+    for idx, (split, slang) in enumerate(combination2samples.keys(), 1):
         combination_samples = combination2samples[(split, slang)]
-        combination_samples.sort(key=lambda x: (x["len"], x["audio_file"]))
-        logger.info(f"Combination {idx}/{len(combination2samples.keys())} ({split}, {slang}): {len(combination_samples)} samples")
-        cache_dir = os.path.join(args.json_path + "_CACHE_ASR", f"{split}/{slang}")
+        # combination_samples.sort(key=lambda x: (x["len"], x["audio_file"]))
+        logger.info(f"Combination {idx+1}/{len(combination2samples.keys())} ({split}, {slang}): {len(combination_samples)} samples")
 
+        cache_dir = os.path.join(args.json_path + "_CACHE_ASR", f"{split}/{slang}")
         if os.path.exists(os.path.join(cache_dir, "meta.json")):
             logger.info(f"Cache directory {cache_dir} already contains meta.json, skipping embedding/saving")
             continue
