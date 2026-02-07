@@ -1,11 +1,10 @@
 import json
-import tsv
+import csv
 import sys
 
 def jsonl_to_tsv(json_path):
 
-    writer = tsv.writer(sys.stdout)
-
+    writer = csv.writer(sys.stdout)
     with open(json_path, "r", encoding="utf-8") as f:
         header = None
         for idx, line in enumerate(f):
