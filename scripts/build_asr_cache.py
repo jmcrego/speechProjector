@@ -13,6 +13,7 @@ from itertools import product
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts.utils import read_samples_from_jsonl
+from scripts.text_normalize import normalize_text
 from Embedder import Embedder
 
 logger = logging.getLogger("build_audio_cache")
@@ -63,17 +64,13 @@ def save_bucket(samples, bucket, cache_dir, bucket_id):
         #not used: samples[idx]["n_audio_embs"] = embs.shape[1]  # T
 
 
-def save_sorted_samples(audio_embedder, samples, embedder_path, batch_size, bucket_size, json_path, cache_dir, tokenizer_path, device, torch_dtype):
+def save_sorted_samples(audio_embedder, samples, batch_size, bucket_size, cache_dir, device, torch_dtype):
     # embed (batch_size) samples and save embeddings in files containing bucket_size samples
     batch_indices = []
     bucket = []
     bucket_id = 0
     t_embedding = 0.0
     t_saving = 0.0
-
-    if os.path.exists(os.path.join(cache_dir, "meta.json")):
-        logger.info(f"Cache directory {cache_dir} already contains meta.json, skipping embedding and saving")
-        return
 
     os.makedirs(cache_dir, exist_ok=True)
 
@@ -115,29 +112,7 @@ def save_sorted_samples(audio_embedder, samples, embedder_path, batch_size, buck
     logger.info(f"Saved {len(samples)} embeddings in {bucket_id} buckets dir={cache_dir}")
     logger.info(f"Embedding time = {t_embedding:.2f}s, Saving time = {t_saving:.2f}s")
 
-    # Save meta.json
-    meta_path = os.path.join(cache_dir, "meta.json")
-    info = {
-        "json_path": json_path,
-        "cache_dir": cache_dir,
-        "embedder_path": embedder_path,
-        "tokenizer_path": tokenizer_path,
-        "dtype": str(torch_dtype),
-        "bucket_size": bucket_size,
-    }
-
-    # meta.json
-    with open(meta_path, "w", encoding="utf-8") as f:
-        json.dump(info, f, ensure_ascii=False, indent=2)
-
-    # samples.jsonl
-    samples_path = os.path.join(cache_dir, "samples.jsonl")
-    with open(samples_path, "w", encoding="utf-8") as f:
-        for s in samples:
-            f.write(json.dumps(s, ensure_ascii=False) + "\n")
-
-    logger.info(f"Saved {meta_path} {samples_path}")
-
+    return samples
 
 
 if __name__ == "__main__":
@@ -149,12 +124,7 @@ if __name__ == "__main__":
     parser.add_argument("--dtype", type=str, default="float16", help="Torch dtype for embeddings")
     parser.add_argument("--batch_size", type=int, default=256, help="Number of samples to fed to embedder")
     parser.add_argument("--bucket_size", type=int, default=256, help="Number of samples per saved bucket")
-    parser.add_argument("--type", type=str, default="ast", help="Type of corpora (ast or asr)")
     args = parser.parse_args()
-
-    if args.type not in ["ast", "asr"]:
-        logger.error(f"Invalid type {args.type}, must be 'ast' or 'asr'")
-        sys.exit(1)
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler(), logging.FileHandler(f"{args.json_path}.{args.type}.log", mode='a', encoding='utf-8')])
 
@@ -166,55 +136,48 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path, use_fast=True)
 
     # Read JSON samples
-    samples = read_samples_from_jsonl(args.json_path)
-    logger.info(f"Read {len(samples)} samples from {args.json_path}")
+    data = read_samples_from_jsonl(args.json_path)
+    logger.info(f"Read {len(data)} samples from {args.json_path}")
 
     # Compute tokenized lengths
-    samples_triplets = []
+    samples = []
 
     splits = set()
     slangs = set()
-    tlangs = set()
-    combinations = set() # set of (split, slang, tlang) combinations found in the data after filtering
-    unique_audio_files = set() # for logging purposes only
+    combinations = set() # set of (split, slang) combinations found in the data after filtering
+    unique_audio_files = set() 
 
-    for s in tqdm(samples, total=len(samples), desc="Tokenizing text", unit=" sample"):
+    for s in tqdm(data, total=len(data), desc="Tokenizing text", unit=" sample"):
         audio_file = s.get("audio_file", "")
         if not isinstance(audio_file, str) or not audio_file.strip():
             continue
 
+        if audio_file in unique_audio_files:
+            continue
+
         text = s.get("transcription", {}).get("text", "")
+        text = normalize_text(text) if text else ""
         if not isinstance(text, str) or not text.strip():
             continue
 
         split = s.get("split", "None")
         slang = s.get("transcription", {}).get("lang", "None")
-        tlang = s.get("translation", {}).get("lang", "None")
-        translation_text = s.get("translation", {}).get("text", "")
-
-        if args.type == "asr":
-            if audio_file in unique_audio_files:
-                continue
-            tlang = "None"
-            translation_text = ""
-
-        unique_audio_files.add(audio_file)
 
         splits.add(split)
         slangs.add(slang)
-        tlangs.add(tlang)
-        combinations.add((split, slang, tlang))
+        combinations.add((split, slang))
+
+        unique_audio_files.add(audio_file)
 
         ids = tokenizer(text, padding=False, truncation=False, add_special_tokens=False)["input_ids"]
-        samples_triplets.append({"audio_file": audio_file, "text": text, "translation": translation_text, "ids": ids, "slang": slang, "tlang": tlang, "split": split, "len": len(ids)})
+        samples.append({"audio_file": audio_file, "text": text, "split": split, "slang": slang, "len": len(ids)})
 
     logger.info(f"Found {len(unique_audio_files)} unique audio files after filtering")
     logger.info(f"Splits: {splits}")
     logger.info(f"slangs: {slangs}")
-    logger.info(f"tlangs: {tlangs}")
     logger.info(f"Combinations: {combinations}")
 
-    if len (samples_triplets) == 0:
+    if len (samples) == 0:
         logger.info("No samples to process after filtering.")
         sys.exit(0)
 
@@ -230,25 +193,47 @@ if __name__ == "__main__":
     audio_embedder.eval()
 
     idx = 0
-    for split, slang, tlang in combinations:
+    for split, slang in combinations:
         idx += 1
-        combinations_samples = [
-            s for s in samples_triplets
-            if s['split'] == split and s['slang'] == slang and s['tlang'] == tlang
-        ]
-        combinations_samples.sort(key=lambda x: (x["len"], x["audio_file"]))
-        logger.info(f"Combination {idx}/{len(combinations)} ({split}: {slang}-{tlang}): {len(combinations_samples)} samples")
+        combination_samples = [ s for s in samples if s['split'] == split and s['slang'] == slang ]
+        combination_samples.sort(key=lambda x: (x["len"], x["audio_file"]))
+        logger.info(f"Combination {idx}/{len(combinations)} ({split}: {slang}): {len(combination_samples)} samples")
 
-        save_sorted_samples(
+        cache_dir = os.path.join(args.json_path + "_cache_asr", f"{split}/{slang}")
+
+        if os.path.exists(os.path.join(cache_dir, "meta.json")):
+            logger.info(f"Cache directory {cache_dir} already contains meta.json, skipping embedding and saving")
+            continue
+
+        samples = save_sorted_samples(
             audio_embedder, 
-            combinations_samples, 
-            args.embedder_path, 
+            combination_samples, 
             args.batch_size, 
             args.bucket_size, 
-            args.json_path, 
-            os.path.join(args.json_path + "_cache_" + args.type, f"{split}/{slang}/{tlang}"), 
-            args.tokenizer_path, 
+            cache_dir,
             args.device, 
             torch_dtype
         )
 
+        # Save meta.json
+        meta_path = os.path.join(cache_dir, "meta.json")
+        info = {
+            "json_path": args.json_path,
+            "cache_dir": cache_dir,
+            "embedder_path": args.embedder_path,
+            "tokenizer_path": args.tokenizer_path,
+            "bucket_size": args.bucket_size,
+            "dtype": args.dtype,
+        }
+
+        # meta.json
+        with open(meta_path, "w", encoding="utf-8") as f:
+            json.dump(info, f, ensure_ascii=False, indent=2)
+
+        # samples.jsonl
+        samples_path = os.path.join(cache_dir, "samples.jsonl")
+        with open(samples_path, "w", encoding="utf-8") as f:
+            for s in samples:
+                f.write(json.dumps(s, ensure_ascii=False) + "\n")
+
+        logger.info(f"Saved {meta_path} {samples_path}")
