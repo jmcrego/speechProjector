@@ -5,6 +5,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+pattern_brackets = re.compile(r"[\(\[\{].*?[\)\]\}]")    
+
 # Carefully chosen punctuation set (Unicode categories starting with P)
 # We remove characters classified as punctuation by Unicode
 def remove_punctuation(text: str) -> str:
@@ -26,7 +28,8 @@ def remove_brackets(text):
         content = match.group(0)
         logger.debug(f"Removing bracketed content: {content}")
         return " "
-    text = re.sub(r"[\(\[\{].*?[\)\]\}]", replacer, text)
+    # This regex matches any content within (), [], {}, including nested ones (non-greedy match)
+    text = pattern_brackets.sub(replacer, text)
     return text
 
 def remove_html(text):
