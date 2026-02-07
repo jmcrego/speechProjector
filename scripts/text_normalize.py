@@ -75,8 +75,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     f = open(args.input_file, "r", encoding="utf-8") if args.input_file else sys.stdin
-    for l in f:
+    for idx, l in enumerate(f):
         l = l.strip()
+        print(f"\n--- Sample {idx} ---")
         print(f"Orig: {l}")
         print(f"Norm: {normalize_text(l)}")
     f.close() if args.input_file else None
