@@ -32,7 +32,7 @@ class Embedder(nn.Module):
         del whisper.decoder  # free decoder weights
         torch.cuda.empty_cache()
         self.embedding_dim = self.embedder.config.d_model
-        self.sample_rate = self.feature_extractor.sampling_rate        
+        self.sample_rate = self.feature_extractor.sampling_rate
         logger.info(f"Loaded {self.path} | embedding_dim={self.embedding_dim} | sample_rate={self.sample_rate}")
         # print model architecture
         logger.debug(self)
@@ -90,7 +90,7 @@ if __name__ == "__main__":
     import argparse
     import time
     import json
-    
+
     parser = argparse.ArgumentParser(description="Extract audio embeddings from file or array.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--config", type=str, required=True, help="Config file")
     parser.add_argument("--audio_files", type=str, help="Comma separated list of audio files")

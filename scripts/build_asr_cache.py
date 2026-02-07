@@ -124,6 +124,7 @@ if __name__ == "__main__":
     parser.add_argument("--dtype", type=str, default="float16", help="Torch dtype for embeddings")
     parser.add_argument("--batch_size", type=int, default=256, help="Number of samples to fed to embedder")
     parser.add_argument("--bucket_size", type=int, default=256, help="Number of samples per saved bucket")
+    parser.add_argument("--max_seq_len", type=int, default=1500 // 15, help="Max sequence length of the transcription. Usually the number of embeddings output by the projector (WHISPER_frames=1500 // PROJECTOR_conv_stride)")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[
@@ -167,6 +168,9 @@ if __name__ == "__main__":
 
 
         ids = tokenizer(text, padding=False, truncation=False, add_special_tokens=False)["input_ids"]
+        if len(ids) > args.max_seq_len:
+            continue
+
         s = {"audio_file": audio_file, "text": text, "split": split, "slang": slang, "len": len(ids)}
         combination2samples[(split, slang)].append(s)
         splits.add(split)
@@ -206,7 +210,7 @@ if __name__ == "__main__":
         idx += 1
         combination_samples = combination2samples[(split, slang)]
         combination_samples.sort(key=lambda x: (x["len"], x["audio_file"]))
-        logger.info(f"Combination {idx}/{len(combinations)} ({split}: {slang}): {len(combination_samples)} samples")
+        logger.info(f"Combination {idx}/{len(combinations)} ({split}, {slang}): {len(combination_samples)} samples")
 
         cache_dir = os.path.join(args.json_path + "_CACHE_ASR", f"{split}/{slang}")
 
@@ -231,6 +235,7 @@ if __name__ == "__main__":
             "cache_dir": cache_dir,
             "embedder_path": args.embedder_path,
             "tokenizer_path": args.tokenizer_path,
+            "max_seq_len": args.max_seq_len,
             "bucket_size": args.bucket_size,
             "dtype": args.dtype,
         }
