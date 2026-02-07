@@ -45,7 +45,7 @@ def remove_diacritics(text):
         if unicodedata.category(ch) != "Mn"
     )
 
-def remove_brackets(text, max_chars=100):
+def remove_brackets(text, max_chars=25):
     contents = []
     def replacer(match):
         content = match.group(0)
@@ -60,7 +60,7 @@ def remove_brackets(text, max_chars=100):
     text = pattern_brackets.sub(replacer, text)
     if contents:
         logger.debug(f"Normalize: Remove brackets content: {contents}")
-    if "Normalize: RemoveEntireSentence" in text:
+    if "RemoveEntireSentence" in text:
         text = ""
     return text
 
