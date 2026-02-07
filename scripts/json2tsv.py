@@ -20,9 +20,9 @@ def jsonl_to_tsv(json_path: str, keys: list[str] = []):
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Convert JSON dataset to TSV format")
-    parser.add_argument("--json_path", type=str, required=True, help="Path to input JSON file")
-    parser.add_argument("--keys", type=str, nargs="+", help="List of keys to include in the TSV (default: all keys from the first JSON object)")
+    parser = argparse.ArgumentParser(description="Convert JSONL dataset to TSV format", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--jsonl_path", type=str, required=True, help="Path to input JSONL file")
+    parser.add_argument("--keys", type=str, nargs="+", help="List of jsonl keys to include OR include all keys if not given")
     args = parser.parse_args()
-
-    jsonl_to_tsv(args.json_path, args.keys)
+    # example usage: python json2tsv.py --jsonl_path data/samples.jsonl --keys audio_file transcription translation
+    jsonl_to_tsv(args.jsonl_path, args.keys)
