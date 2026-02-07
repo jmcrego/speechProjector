@@ -75,9 +75,10 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Test text normalization.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--input_file", type=str, help="Input file to normalize OR use stdin if not given")
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.DEBUG, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
+    logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
     f = open(args.input_file, "r", encoding="utf-8") if args.input_file else sys.stdin
     for idx, l in enumerate(f):
