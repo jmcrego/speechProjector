@@ -143,15 +143,13 @@ if __name__ == "__main__":
     data = read_samples_from_jsonl(args.json_path)
     logger.info(f"Read {len(data)} samples from {args.json_path}")
 
-    # Compute tokenized lengths
-    samples = []
-
     splits = set()
     slangs = set()
-    combinations = set() # set of (split, slang) combinations found in the data after filtering
+    combination2samples = defaultdict(list) # dict of (split, slang) → list of samples
     unique_audio_files = set() 
 
     logger.info("-"* 80 + f" Filtering samples " + "-"* 80)
+    samples = []
     for s in tqdm(data, total=len(data), desc="Tokenizing text", unit=" sample"):
         audio_file = s.get("audio_file", "")
         if not isinstance(audio_file, str) or not audio_file.strip():
@@ -168,18 +166,25 @@ if __name__ == "__main__":
         split = s.get("split", "None")
         slang = s.get("transcription", {}).get("lang", "None")
 
-        splits.add(split)
-        slangs.add(slang)
-        combinations.add((split, slang))
-        unique_audio_files.add(audio_file)
 
         ids = tokenizer(text, padding=False, truncation=False, add_special_tokens=False)["input_ids"]
-        samples.append({"audio_file": audio_file, "text": text, "split": split, "slang": slang, "len": len(ids)})
+        s = {"audio_file": audio_file, "text": text, "split": split, "slang": slang, "len": len(ids)}
+        combination2samples[(split, slang)].append(s)
+        splits.add(split)
+        slangs.add(slang)
+        unique_audio_files.add(audio_file)
+
 
     logger.info(f"Found {len(unique_audio_files)} unique audio files after filtering")
     logger.info(f"Splits: {splits}")
     logger.info(f"slangs: {slangs}")
-    logger.info(f"Combinations: {combinations}")
+    ### log combinations and their counts, sorted by value (count) descending and then by split and slang lexicographically ascending
+    combinations = list(combination2samples.keys())
+    combinations.sort(key=lambda x: (len(combination2samples[x]), x[0], x[1]), reverse=True)
+    logger.info("Combinations (split, slang) and their counts:")
+    for split, slang in combinations:
+        count = len(combination2samples[(split, slang)])
+        logger.info(f"  ({split}, {slang}): {count} samples")    
 
     if len (samples) == 0:
         logger.info("No samples to process after filtering.")
@@ -200,7 +205,7 @@ if __name__ == "__main__":
     idx = 0
     for split, slang in combinations:
         idx += 1
-        combination_samples = [ s for s in samples if s['split'] == split and s['slang'] == slang ]
+        combination_samples = combination2samples[(split, slang)]
         combination_samples.sort(key=lambda x: (x["len"], x["audio_file"]))
         logger.info(f"Combination {idx}/{len(combinations)} ({split}: {slang}): {len(combination_samples)} samples")
 
