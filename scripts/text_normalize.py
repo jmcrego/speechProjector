@@ -78,6 +78,6 @@ if __name__ == "__main__":
     for idx, l in enumerate(f):
         l = l.strip()
         print(f"\n--- Sample {idx} ---")
-        print(f"Orig: {l}")
-        print(f"Norm: {normalize_text(l)}")
+        print(f"[src] {l}")
+        print(f"[tgt] {normalize_text(l)}")
     f.close() if args.input_file else None
