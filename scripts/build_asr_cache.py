@@ -171,7 +171,6 @@ if __name__ == "__main__":
         splits.add(split)
         slangs.add(slang)
         combinations.add((split, slang))
-
         unique_audio_files.add(audio_file)
 
         ids = tokenizer(text, padding=False, truncation=False, add_special_tokens=False)["input_ids"]
