@@ -48,7 +48,7 @@ def remove_punctuation(text: str) -> str:
 def remove_brackets(text):
     def replacer(match):
         content = match.group(0)
-        logger.debug(f"Removing bracketed content: {content}\t{text}")
+        logger.debug(f"Removing bracketed content: {content}")
         return " "
     # This regex matches any content within (), [], {}, including nested ones (non-greedy match). It will remove the brackets and their content.
     # Note: This will not handle nested brackets of the same type correctly (e.g., "This is (a test (with nested) brackets) example"), 
