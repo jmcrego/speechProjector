@@ -126,7 +126,10 @@ if __name__ == "__main__":
     parser.add_argument("--bucket_size", type=int, default=256, help="Number of samples per saved bucket")
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler(), logging.FileHandler(f"{args.json_path}.{args.type}.log", mode='a', encoding='utf-8')])
+    logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[
+        logging.StreamHandler(), 
+        logging.FileHandler(f"{args.json_path}_CACHE_ASR.log", mode='a', encoding='utf-8')
+    ])
 
     #################################################################################
     ### Compute tokenized lengths and sort samples by length (shortest → longest) ###
