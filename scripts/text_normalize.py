@@ -67,8 +67,10 @@ def remove_html(text):
     return text
 
 def replace_currency(text: str) -> str:
-    # Replace currency symbols with their names (e.g., $ → dollars, € → euros)
+    # Replace currency symbols with their names (e.g., $ → dollars, € → euros) and log the replacements
     for symbol, name in currency_map.items():
+        if symbol in text:
+            logger.debug(f"Replacing currency symbol: {symbol} → {name} from text: {text}")
         text = text.replace(symbol, f" {name} ")
     return text
 
