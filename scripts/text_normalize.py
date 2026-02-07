@@ -58,10 +58,22 @@ def remove_brackets(text):
     return text
 
 def remove_html(text):
-    # Remove HTML tags (e.g., <br>, <p>, <span>)
-    text = re.sub(r"<[^>]+>", " ", text)
-    # Unescape HTML entities (&gt;, &nbsp;, etc.)
-    text = html.unescape(text)
+    # Remove HTML tags (e.g., <br>, <p>, <span>) and log the removed tags
+    def replacer(match):
+        content = match.group(0)
+        logger.debug(f"Removing HTML tag: {content} from text: {text}")
+        return " "
+
+    text = re.sub(r"<[^>]+>", replacer, text)
+
+    # Unescape HTML entities (&gt;, &nbsp;, etc.) and log the unescaped entities
+    def unescape_replacer(match):
+        entity = match.group(0)
+        unescaped = html.unescape(entity)
+        logger.debug(f"Unescaping HTML entity: {entity} → {unescaped} input text: {text}")
+        return unescaped
+    text = re.sub(r"&[a-zA-Z]+?;", unescape_replacer, text)
+
     # Some HTML entities turn into non-breaking spaces
     text = text.replace("\u00a0", " ")
     return text
@@ -94,7 +106,7 @@ def normalize_text(text: str) -> str:
     text = remove_brackets(text)
 
     # Replace currency symbols with their names (e.g., $ → dollars, € → euros)
-    text = replace_currency(text)
+    # text = replace_currency(text)
 
     # Remove punctuation (Unicode-aware)
     text = remove_punctuation(text)
