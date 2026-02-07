@@ -61,7 +61,7 @@ def remove_unescape_html(text):
     # Remove HTML tags (e.g., <br>, <p>, <span>) and log the removed tags
     def replacer(match):
         content = match.group(0)
-        logger.debug(f"Removing HTML tag: {content}\t{text}")
+        logger.debug(f"Removing HTML tag: {content}")
         return " "
 
     text = re.sub(r"<[^>]+>", replacer, text)
@@ -70,7 +70,7 @@ def remove_unescape_html(text):
     def unescape_replacer(match):
         entity = match.group(0)
         unescaped = html.unescape(entity)
-        logger.debug(f"Unescaping HTML entity: {entity} → {unescaped}\t{text}")
+        logger.debug(f"Unescaping HTML entity: {entity} → {unescaped}")
         return unescaped
     text = re.sub(r"&[a-zA-Z]+?;", unescape_replacer, text)
 
@@ -82,7 +82,7 @@ def replace_currency(text: str) -> str:
     # Replace currency symbols with their names (e.g., $ → dollars, € → euros) and log the replacements
     for symbol, name in currency_map.items():
         if symbol in text:
-            logger.debug(f"Replacing currency symbol: {symbol} → {name}\t{text}")
+            logger.debug(f"Replacing currency symbol: {symbol} → {name}")
         text = text.replace(symbol, f" {name} ")
     return text
 
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     f = open(args.input_file, "r", encoding="utf-8") if args.input_file else sys.stdin
     for idx, l in enumerate(f):
         l = l.strip()
-        logger.debug(f"\n--- Sample {idx} ---")
+        logger.debug(f"--- Sample {idx} ---")
         logger.debug(f"[src] {l}")
         n = normalize_text(l)
         print(f"{n}")
