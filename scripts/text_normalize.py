@@ -46,20 +46,21 @@ def remove_diacritics(text):
     )
 
 def remove_brackets(text, max_chars=100):
+    contents = []
     def replacer(match):
         content = match.group(0)
-        logger.debug(f"Removing brackets: {content}")
+        contents.append(content)
         if len(content) > max_chars:
-            logger.warning(f"Brackets content too long ({len(content)} chars), removing entire sentence: {text}")
-            return "remove-entire-sentence"
+            return "RemoveEntireSentence"
         return " "
     # This regex matches any content within (), [], {}, including nested ones (non-greedy match). It will remove the brackets and their content.
     # Note: This will not handle nested brackets of the same type correctly (e.g., "This is (a test (with nested) brackets) example"), 
     # but it will handle different types of brackets nested within each other (e.g., "This is [a test (with nested) brackets] example").
     # For structures with multiple non-overlapped labels like "This is (a test) and [another test] example", it will remove both "(a test)" and "[another test]" correctly.
     text = pattern_brackets.sub(replacer, text)
-    if "remove-entire-sentence" in text:
-        return ""
+    logger.debug(f"Normalize: Remove brackets content: {contents}")
+    if "Normalize: RemoveEntireSentence" in text:
+        text = ""
     return text
 
 def remove_unescape_html(text):
@@ -67,14 +68,14 @@ def remove_unescape_html(text):
     def unescape_replacer(match):
         entity = match.group(0)
         unescaped = html.unescape(entity)
-        logger.debug(f"Unescaping HTML entity: {entity} → {unescaped}")
+        logger.debug(f"Normalize: Unescaping HTML entity: {entity} → {unescaped}")
         return unescaped
     text = re.sub(r"&[a-zA-Z]+?;", unescape_replacer, text)
 
     # Remove HTML tags (e.g., <br>, <p>, <span>) and log the removed tags
     def replacer(match):
         content = match.group(0)
-        logger.debug(f"Removing HTML tag: {content}")
+        logger.debug(f"Normalize: Remove HTML tag: {content}")
         return " "
 
     text = re.sub(r"<[^>]+>", replacer, text)
@@ -87,7 +88,7 @@ def replace_currency(text: str) -> str:
     # Replace currency symbols with their names (e.g., $ → dollars, € → euros) and log the replacements
     for symbol, name in currency_map.items():
         if symbol in text:
-            logger.debug(f"Replacing currency symbol: {symbol} → {name}")
+            logger.debug(f"Normalize: Replace currency symbol: {symbol} → {name}")
         text = text.replace(symbol, f" {name} ")
     return text
 
