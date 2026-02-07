@@ -130,7 +130,7 @@ if __name__ == "__main__":
     f = open(args.input_file, "r", encoding="utf-8") if args.input_file else sys.stdin
     for idx, l in enumerate(f):
         l = l.strip()
-        print(f"\n--- Sample {idx} ---")
-        print(f"[src] {l}")
-        print(f"[tgt] {normalize_text(l)}")
+        logger.debug(f"\n--- Sample {idx} ---")
+        logger.debug(f"[src] {l}")
+        print(f"{normalize_text(l)}")
     f.close() if args.input_file else None
