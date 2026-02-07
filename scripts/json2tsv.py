@@ -4,7 +4,7 @@ import sys
 
 def jsonl_to_tsv(json_path):
 
-    writer = csv.writer(sys.stdout)
+    writer = csv.writer(sys.stdout, delimiter="\t", quoting=csv.QUOTE_MINIMAL)
     with open(json_path, "r", encoding="utf-8") as f:
         header = None
         for idx, line in enumerate(f):
