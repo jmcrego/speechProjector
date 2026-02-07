@@ -57,7 +57,7 @@ def remove_brackets(text):
     text = pattern_brackets.sub(replacer, text)
     return text
 
-def remove_html(text):
+def remove_unescape_html(text):
     # Remove HTML tags (e.g., <br>, <p>, <span>) and log the removed tags
     def replacer(match):
         content = match.group(0)
@@ -70,7 +70,7 @@ def remove_html(text):
     def unescape_replacer(match):
         entity = match.group(0)
         unescaped = html.unescape(entity)
-        logger.debug(f"Unescaping HTML entity: {entity} → {unescaped} input text: {text}")
+        logger.debug(f"Unescaping HTML entity: {entity} → {unescaped} from text: {text}")
         return unescaped
     text = re.sub(r"&[a-zA-Z]+?;", unescape_replacer, text)
 
@@ -97,7 +97,7 @@ def normalize_text(text: str) -> str:
     text = text.lower()
 
     # remove html tags and unescape entities
-    text = remove_html(text)
+    text = remove_unescape_html(text)
 
     # keep only valid Unicode characters (remove invalid byte sequences)
     text = text.encode("utf-8", "ignore").decode("utf-8", "ignore")
