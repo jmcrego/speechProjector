@@ -132,5 +132,7 @@ if __name__ == "__main__":
         l = l.strip()
         logger.debug(f"\n--- Sample {idx} ---")
         logger.debug(f"[src] {l}")
-        print(f"{normalize_text(l)}")
+        n = normalize_text(l)
+        print(f"{n}")
+        logger.debug(f"[tgt] {n}")
     f.close() if args.input_file else None
