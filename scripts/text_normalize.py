@@ -45,13 +45,16 @@ def normalize_text(text: str) -> str:
 
 if __name__ == "__main__":
     import argparse
+    import sys
 
-    parser = argparse.ArgumentParser(description="Test text normalization.")
-    parser.add_argument("--input_file", type=str, required=True, help="Input file to normalize")
+    parser = argparse.ArgumentParser(description="Test text normalization.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--input_file", type=str, help="Input file to normalize OR use stdin if not given")
     args = parser.parse_args()
 
-    with open(args.input_file, "r", encoding="utf-8") as f:
-        for l in f:
-            l = l.strip()
-            print(f"Orig: {l}")
-            print(f"Norm: {normalize_text(l)}")
+    f = open(args.input_file, "r", encoding="utf-8") if args.input_file else sys.stdin
+    for l in f:
+        l = l.strip()
+        print(f"Orig: {l}")
+        print(f"Norm: {normalize_text(l)}")
+    f.close() if args.input_file else None
+    
