@@ -149,18 +149,23 @@ if __name__ == "__main__":
     combination2samples = defaultdict(list) # dict of (split, slang) → list of samples
     unique_audio_files = set() 
 
+    stats = defaultdict(int)
+
     logger.info("-"* 40 + f" Filtering samples " )
     for s in tqdm(data, total=len(data), desc="Tokenizing text", unit=" sample"):
         audio_file = s.get("audio_file", "")
         if not isinstance(audio_file, str) or not audio_file.strip():
+            stats['empty_audio_file'] += 1
             continue
 
         if audio_file in unique_audio_files:
+            stats['repeated_audio_file'] += 1
             continue
 
         text = s.get("transcription", {}).get("text", "")
         text = normalize_text(text) if text else ""
         if not isinstance(text, str) or not text.strip():
+            stats['empty_text'] += 1
             continue
 
         split = s.get("split", "None")
@@ -169,6 +174,7 @@ if __name__ == "__main__":
 
         ids = tokenizer(text, padding=False, truncation=False, add_special_tokens=False)["input_ids"]
         if len(ids) > args.max_seq_len:
+            stats['too_long_text'] += 1
             continue
 
         s = {"audio_file": audio_file, "text": text, "split": split, "slang": slang, "len": len(ids)}
@@ -179,6 +185,8 @@ if __name__ == "__main__":
 
 
     logger.info(f"Found {len(unique_audio_files)} unique audio files after filtering")
+    for k in sorted(stats.keys()):
+        logger.info(f"{k}: {stats[k]}")
     logger.info(f"Splits: {splits}")
     logger.info(f"slangs: {slangs}")
     ### log combinations and their counts, sorted by value (count) descending and then by split and slang lexicographically ascending
