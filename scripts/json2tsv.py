@@ -22,7 +22,7 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Convert JSON dataset to TSV format")
     parser.add_argument("--json_path", type=str, required=True, help="Path to input JSON file")
-    parser.add_argument("--keys", type=str, nargs="+", help="List of keys to keep when reading the jsonl file")
+    parser.add_argument("--keys", type=str, nargs="+", help="List of keys to include in the TSV (default: all keys from the first JSON object)")
     args = parser.parse_args()
 
     jsonl_to_tsv(args.json_path, args.keys)
