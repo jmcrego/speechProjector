@@ -1,14 +1,13 @@
-import argparse
 from tqdm import tqdm
+import argparse
 import logging
 import torch
 import json
 import os
 import sys
 import time
-from transformers import AutoTokenizer
 from collections import defaultdict
-from itertools import product
+from transformers import AutoTokenizer
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -115,44 +114,16 @@ def save_sorted_samples(audio_embedder, samples, cache_dir, batch_size, bucket_s
     return samples
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Cache audio embeddings as .pt files from JSON (bucketed)")
-    parser.add_argument("--json_path", type=str, required=True, help="JSON file with audio metadata")
-    parser.add_argument("--embedder_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/openai/whisper-medium")
-    parser.add_argument("--tokenizer_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct")
-    parser.add_argument("--device", type=str, default="cuda", help="Device for embeddings")
-    parser.add_argument("--dtype", type=str, default="float16", help="Torch dtype for embeddings")
-    parser.add_argument("--batch_size", type=int, default=256, help="Number of samples to fed to embedder")
-    parser.add_argument("--bucket_size", type=int, default=256, help="Number of samples per saved bucket")
-    parser.add_argument("--max_seq_len", type=int, default=1500 // 15, help="Max sequence length of the transcription. Usually the number of embeddings output by the projector (WHISPER_frames=1500 // PROJECTOR_conv_stride)")
-    args = parser.parse_args()
+def filter_and_group_samples(samples):
 
-    logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[
-        logging.StreamHandler(), 
-        logging.FileHandler(f"{args.json_path}_CACHE_ASR.log", mode='a', encoding='utf-8')
-    ])
-
-    #################################################################################
-    ### Compute tokenized lengths and sort samples by length (shortest → longest) ###
-    #################################################################################
-
-    # Load tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path, use_fast=True)
-
-    # Read JSON samples
-    logger.info("-"* 40 + f" Reading samples from {args.json_path} ")
-    data = read_samples_from_jsonl(args.json_path)
-    logger.info(f"Read {len(data)} samples from {args.json_path}")
-
-    splits = set()
-    slangs = set()
     combination2samples = defaultdict(list) # dict of (split, slang) → list of samples
     unique_audio_files = set() 
-
+    splits = set()
+    slangs = set()
     stats = defaultdict(int)
 
     logger.info("-"* 40 + f" Filtering samples " )
-    for s in tqdm(data, total=len(data), desc="Tokenizing text", unit=" sample"):
+    for s in tqdm(samples, total=len(samples), desc="Tokenizing text", unit=" sample"):
         audio_file = s.get("audio_file", "")
         if not isinstance(audio_file, str) or not audio_file.strip():
             stats['empty_audio_file'] += 1
@@ -171,13 +142,12 @@ if __name__ == "__main__":
         split = s.get("split", "None")
         slang = s.get("transcription", {}).get("lang", "None")
 
+        # ids = tokenizer(text, padding=False, truncation=False, add_special_tokens=False)["input_ids"]
+        # if len(ids) > args.max_seq_len:
+        #     stats['too_long_text'] += 1
+        #     continue
 
-        ids = tokenizer(text, padding=False, truncation=False, add_special_tokens=False)["input_ids"]
-        if len(ids) > args.max_seq_len:
-            stats['too_long_text'] += 1
-            continue
-
-        s = {"audio_file": audio_file, "text": text, "split": split, "slang": slang, "len": len(ids)}
+        s = {"audio_file": audio_file, "text": text} #, "split": split, "slang": slang, "len": len(ids)}
         combination2samples[(split, slang)].append(s)
         splits.add(split)
         slangs.add(slang)
@@ -187,8 +157,10 @@ if __name__ == "__main__":
     logger.info(f"Found {len(unique_audio_files)} unique audio files after filtering")
     for k in sorted(stats.keys()):
         logger.info(f"{k}: {stats[k]}")
+
     logger.info(f"Splits: {splits}")
     logger.info(f"slangs: {slangs}")
+
     ### log combinations and their counts, sorted by value (count) descending and then by split and slang lexicographically ascending
     combinations = list(combination2samples.keys())
     combinations.sort(key=lambda x: (len(combination2samples[x]), x[0], x[1]), reverse=True)
@@ -197,13 +169,41 @@ if __name__ == "__main__":
         count = len(combination2samples[(split, slang)])
         logger.info(f"  ({split}, {slang}): {count} samples")    
 
+    return combination2samples
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Cache audio embeddings as .pt files from JSON (bucketed)")
+    parser.add_argument("--json_path", type=str, required=True, help="JSON file with audio metadata")
+    parser.add_argument("--embedder_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/openai/whisper-medium")
+    parser.add_argument("--tokenizer_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct")
+    parser.add_argument("--device", type=str, default="cuda", help="Device for embeddings")
+    parser.add_argument("--dtype", type=str, default="float16", help="Torch dtype for embeddings")
+    parser.add_argument("--batch_size", type=int, default=256, help="Number of samples to fed to embedder")
+    parser.add_argument("--bucket_size", type=int, default=256, help="Number of samples per saved bucket")
+    # parser.add_argument("--max_seq_len", type=int, default=1500 // 15, help="Max sequence length of the transcription. Usually the number of embeddings output by the projector (WHISPER_frames=1500 // PROJECTOR_conv_stride)")
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[
+        logging.StreamHandler(), 
+        logging.FileHandler(f"{args.json_path}_CACHE_ASR.log", mode='a', encoding='utf-8')
+    ])
+
+    tic = time.time()
+
+    # Load tokenizer
+    # tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path, use_fast=True)
+
+    # Read JSON samples
+    logger.info("-"* 40 + f" Reading samples from {args.json_path} ")
+    samples = read_samples_from_jsonl(args.json_path)
+    logger.info(f"Read {len(samples)} samples from {args.json_path}")
+
+    combination2samples = filter_and_group_samples(samples)
+
     if len (combination2samples) == 0:
         logger.info("No samples to process after filtering.")
         sys.exit(0)
-
-    #################################################################################
-    ### Save audio embeddings in bucketed .pt files #################################
-    #################################################################################
 
     torch_dtype = getattr(torch, args.dtype)
 
@@ -214,12 +214,11 @@ if __name__ == "__main__":
 
     logger.info("-"* 40 + f" Embedding/saving samples ")
     idx = 0
-    for split, slang in combinations:
+    for split, slang in combination2samples.keys():
         idx += 1
         combination_samples = combination2samples[(split, slang)]
         combination_samples.sort(key=lambda x: (x["len"], x["audio_file"]))
-        logger.info(f"Combination {idx}/{len(combinations)} ({split}, {slang}): {len(combination_samples)} samples")
-
+        logger.info(f"Combination {idx}/{len(combination2samples.keys())} ({split}, {slang}): {len(combination_samples)} samples")
         cache_dir = os.path.join(args.json_path + "_CACHE_ASR", f"{split}/{slang}")
 
         if os.path.exists(os.path.join(cache_dir, "meta.json")):
@@ -242,8 +241,8 @@ if __name__ == "__main__":
             "json_path": args.json_path,
             "cache_dir": cache_dir,
             "embedder_path": args.embedder_path,
-            "tokenizer_path": args.tokenizer_path,
-            "max_seq_len": args.max_seq_len,
+            # "tokenizer_path": args.tokenizer_path,
+            # "max_seq_len": args.max_seq_len,
             "bucket_size": args.bucket_size,
             "dtype": args.dtype,
         }
@@ -259,3 +258,5 @@ if __name__ == "__main__":
                 f.write(json.dumps(s, ensure_ascii=False) + "\n")
 
         logger.info(f"Saved {meta_path} {samples_path}")
+
+    logger.info(f"Total time: {time.time() - tic:.2f}s")
