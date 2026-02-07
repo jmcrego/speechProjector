@@ -48,7 +48,7 @@ def remove_punctuation(text: str) -> str:
 def remove_brackets(text):
     def replacer(match):
         content = match.group(0)
-        logger.debug(f"Removing bracketed content: {content} from text: {text}")
+        logger.debug(f"Removing bracketed content: {content}\t{text}")
         return " "
     # This regex matches any content within (), [], {}, including nested ones (non-greedy match). It will remove the brackets and their content.
     # Note: This will not handle nested brackets of the same type correctly (e.g., "This is (a test (with nested) brackets) example"), 
@@ -61,7 +61,7 @@ def remove_unescape_html(text):
     # Remove HTML tags (e.g., <br>, <p>, <span>) and log the removed tags
     def replacer(match):
         content = match.group(0)
-        logger.debug(f"Removing HTML tag: {content} from text: {text}")
+        logger.debug(f"Removing HTML tag: {content}\t{text}")
         return " "
 
     text = re.sub(r"<[^>]+>", replacer, text)
@@ -70,7 +70,7 @@ def remove_unescape_html(text):
     def unescape_replacer(match):
         entity = match.group(0)
         unescaped = html.unescape(entity)
-        logger.debug(f"Unescaping HTML entity: {entity} → {unescaped} from text: {text}")
+        logger.debug(f"Unescaping HTML entity: {entity} → {unescaped}\t{text}")
         return unescaped
     text = re.sub(r"&[a-zA-Z]+?;", unescape_replacer, text)
 
@@ -82,7 +82,7 @@ def replace_currency(text: str) -> str:
     # Replace currency symbols with their names (e.g., $ → dollars, € → euros) and log the replacements
     for symbol, name in currency_map.items():
         if symbol in text:
-            logger.debug(f"Replacing currency symbol: {symbol} → {name} from text: {text}")
+            logger.debug(f"Replacing currency symbol: {symbol} → {name}\t{text}")
         text = text.replace(symbol, f" {name} ")
     return text
 
