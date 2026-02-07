@@ -26,7 +26,7 @@ def remove_brackets(text):
     # Remove content within (), [], {}, and the brackets themselves, log removed content for debugging
     def replacer(match):
         content = match.group(0)
-        logger.debug(f"Removing bracketed content: {content}")
+        logger.debug(f"Removing bracketed content: {content} from text: {text}")
         return " "
     # This regex matches any content within (), [], {}, including nested ones (non-greedy match)
     text = pattern_brackets.sub(replacer, text)
