@@ -77,6 +77,8 @@ if __name__ == "__main__":
     parser.add_argument("--input_file", type=str, help="Input file to normalize OR use stdin if not given")
     args = parser.parse_args()
 
+    logging.basicConfig(level=logging.DEBUG, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
+
     f = open(args.input_file, "r", encoding="utf-8") if args.input_file else sys.stdin
     for idx, l in enumerate(f):
         l = l.strip()
