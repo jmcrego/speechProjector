@@ -39,11 +39,11 @@ def remove_punctuation(text: str) -> str:
     )
 
 # café → cafe, naïve → naive, coöperate → cooperate
-# def remove_diacritics(text):
-#     return "".join(
-#         ch for ch in unicodedata.normalize("NFD", text)
-#         if unicodedata.category(ch) != "Mn"
-#     )
+def remove_diacritics(text):
+    return "".join(
+        ch for ch in unicodedata.normalize("NFD", text)
+        if unicodedata.category(ch) != "Mn"
+    )
 
 def remove_brackets(text):
     def replacer(match):
@@ -58,14 +58,6 @@ def remove_brackets(text):
     return text
 
 def remove_unescape_html(text):
-    # Remove HTML tags (e.g., <br>, <p>, <span>) and log the removed tags
-    def replacer(match):
-        content = match.group(0)
-        logger.debug(f"Removing HTML tag: {content}")
-        return " "
-
-    text = re.sub(r"<[^>]+>", replacer, text)
-
     # Unescape HTML entities (&gt;, &nbsp;, etc.) and log the unescaped entities
     def unescape_replacer(match):
         entity = match.group(0)
@@ -73,6 +65,14 @@ def remove_unescape_html(text):
         logger.debug(f"Unescaping HTML entity: {entity} → {unescaped}")
         return unescaped
     text = re.sub(r"&[a-zA-Z]+?;", unescape_replacer, text)
+
+    # Remove HTML tags (e.g., <br>, <p>, <span>) and log the removed tags
+    def replacer(match):
+        content = match.group(0)
+        logger.debug(f"Removing HTML tag: {content}")
+        return " "
+
+    text = re.sub(r"<[^>]+>", replacer, text)
 
     # Some HTML entities turn into non-breaking spaces
     text = text.replace("\u00a0", " ")
@@ -107,6 +107,9 @@ def normalize_text(text: str) -> str:
 
     # Replace currency symbols with their names (e.g., $ → dollars, € → euros)
     # text = replace_currency(text)
+
+    # Remove diacritics (e.g., café → cafe, naïve → naive, coöperate → cooperate)
+    # text = remove_diacritics(text)
 
     # Remove punctuation (Unicode-aware)
     text = remove_punctuation(text)
