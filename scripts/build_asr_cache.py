@@ -140,6 +140,7 @@ def filter_and_group_samples(samples, tokenizer=None, max_seq_len=None):
 
         split = s.get("split", "None")
         slang = s.get("transcription", {}).get("lang", "None")
+        idx = s.get("idx", -1)
 
         if tokenizer is not None:
             ids = tokenizer(text, padding=False, truncation=False, add_special_tokens=False)["input_ids"]
@@ -147,7 +148,7 @@ def filter_and_group_samples(samples, tokenizer=None, max_seq_len=None):
                 stats['too_long_text'] += 1
                 continue
 
-        s = {"audio_file": audio_file, "text": text, "len": len(text)}
+        s = {"audio_file": audio_file, "text": text, "len": len(text)} #, "idx": idx, "split": split, "slang": slang}
         combination2samples[(split, slang)].append(s)
         splits.add(split)
         slangs.add(slang)
@@ -212,7 +213,8 @@ if __name__ == "__main__":
         combination_samples = combination2samples[(split, slang)]
         logger.info(f"Combination {idx}/{len(combination2samples.keys())} ({split}, {slang}): {len(combination_samples)} samples")
 
-        combination_samples.sort(key=lambda x: (x["len"], x["audio_file"])) ### not really needed 
+        ### sorting is not really needed since in stage1 transcriptions are filled with padding tokens to max_seq_len, but it doesn't hurt to have a deterministic order
+        combination_samples.sort(key=lambda x: (x["len"], x["audio_file"])) 
 
         cache_dir = os.path.join(args.json_path + "_CACHE_ASR", f"{split}/{slang}")
         if os.path.exists(os.path.join(cache_dir, "meta.json")):
