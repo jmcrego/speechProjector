@@ -164,10 +164,11 @@ def filter_and_group_samples(samples, tokenizer=None, max_seq_len=None):
     logger.info(f"Splits: {splits}")
     logger.info(f"slangs: {slangs}")
 
-    combinations = list(combination2samples.keys())
+    # sort combinations by numbmer of samples (descending), then by split and slang (ascending)
+    combinations_sorted = sorted(combination2samples.keys(), key=lambda x: (len(combination2samples[x]), x[0], x[1]), reverse=False)
     logger.info("Combinations (split, slang) and their counts:")
-    for split, slang in combinations.sort(key=lambda x: (len(combination2samples[x]), x[0], x[1]), reverse=True):
-        logger.info(f"  ({split}, {slang}): {len(combination2samples[(split, slang)])} samples")    
+    for split, slang in combinations_sorted:
+        logger.info(f"  ({split}, {slang}): {len(combination2samples[(split, slang)])} samples")
 
     return combination2samples
 
@@ -211,7 +212,10 @@ if __name__ == "__main__":
     audio_embedder.to(args.device, dtype=torch_dtype)
     audio_embedder.eval()
 
-    for idx, (split, slang) in enumerate(combination2samples.keys(), 1):
+    # sort combinations by numbmer of samples (descending), then by split and slang (ascending)
+    combinations_sorted = sorted(combination2samples.keys(), key=lambda x: (len(combination2samples[x]), x[0], x[1]), reverse=False)
+
+    for idx, (split, slang) in enumerate(combinations_sorted, 1):
         samples = combination2samples[(split, slang)]
         logger.info(f"Combination {idx}/{len(combination2samples.keys())} ({split}, {slang}): {len(samples)} samples")
 
