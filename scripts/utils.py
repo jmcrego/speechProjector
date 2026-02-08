@@ -334,4 +334,5 @@ def read_samples_from_jsonl(
     for k in sorted(stats.keys()): # traverse stats lexicographically sorted by key and log content
         logger.info(f"{k}: {stats[k]:.2f}") if isinstance(stats[k], float) else logger.info(f"{k}: {stats[k]}")
 
+    samples.sort(key=lambda x: x["idx"], reverse=False) # sort samples by original line number in JSONL (idx) to ensure deterministic order for reproducibility and easier debugging
     return samples
