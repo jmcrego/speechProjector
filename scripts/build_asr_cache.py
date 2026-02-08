@@ -68,6 +68,7 @@ def save_samples_in_buckets(
         end = min(start + batch_size, len(samples))
         batch_indices = list(range(start, end))
 
+        # Embed a batch of audio and move to CPU immediately to free GPU memory asap, non_blocking if pinned memory
         audio_embs = process_batch(audio_embedder, samples, batch_indices, device, torch_dtype)
 
         for i, idx in enumerate(batch_indices):
