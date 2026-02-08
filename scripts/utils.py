@@ -5,6 +5,7 @@ from pathlib import Path
 from datetime import datetime
 import torch
 import soxr
+import os
 import logging
 from tqdm import tqdm
 import numpy as np
@@ -289,6 +290,7 @@ def read_samples_from_jsonl(
     """
     Read samples from a JSONL file and build training examples (parallel audio metadata).
     """
+    num_workers = min(num_workers, os.cpu_count() * 2)
     samples = []
     stats = defaultdict(int)
 
