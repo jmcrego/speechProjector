@@ -10,6 +10,7 @@ from tqdm import tqdm
 import numpy as np
 import soundfile as sf
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 logger = logging.getLogger("utils")
 
@@ -113,91 +114,221 @@ def compute_grad_norm(params, eps=1e-6):
     return total_norm
 
 
-def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\t", split=None, slang=None, tlang=None, use_tqdm=True):
+# def read_samples_from_jsonl(path: str, max_duration: float = 30.0, sep: str = "\t", split=None, slang=None, tlang=None, use_tqdm=True):
+#     """
+#     Read samples from a JSONL file and build training examples.
+#     """    
+#     samples = []
+#     stats = defaultdict(int)
+
+#     # read jsonl line by line
+#     with open(path, "r", encoding="utf-8") as f:
+#         for line_no, line in enumerate(tqdm(f, desc=f"Reading {Path(path).name}", unit=" sample", disable=not use_tqdm), start=1):
+        
+#             entry = json.loads(line)
+
+#             if split is not None:
+#                 if entry.get("split", "") != split:
+#                     continue
+
+#             audio_path = entry.get("audio_file", None)
+#             if audio_path is None:
+#                 audio_path = entry.get("audio_path")
+#             if audio_path is None:
+#                 stats['missing_audio_path'] += 1
+#                 continue
+
+#             transcription = entry.get("transcription")
+
+#             if transcription is not None:
+#                 # ASR sample
+#                 src_lang = transcription.get("lang", "").strip()
+#                 if not src_lang:
+#                     stats['empty_src_lang'] += 1
+#                     continue
+#                 if slang is not None and src_lang != slang:
+#                     continue
+
+#                 src_text = transcription.get("text", "").strip()
+#                 if not src_text:
+#                     stats['empty_src_text'] += 1
+#                     continue
+#             else:
+#                 stats['missing_transcriptions'] += 1
+            
+
+#             translation = entry.get("translation")
+
+#             if translation is not None:
+#                 # STT sample
+#                 tgt_lang = translation.get("lang", "").strip()
+#                 if not tgt_lang:
+#                     stats['empty_tgt_lang'] += 1
+#                     continue
+#                 if tlang is not None and tgt_lang != tlang:
+#                     continue
+
+#                 tgt_text = translation.get("text", "").strip()
+#                 if not tgt_text:
+#                     stats['empty_tgt_text'] += 1
+#                     continue
+#             else:
+#                 stats['missing_translations'] += 1
+
+
+#             try:
+#                 info = sf.info(audio_path)
+#                 if not info.frames or not info.samplerate:
+#                     stats['invalid_audio_info'] += 1
+#                     continue
+#                 duration = info.frames / info.samplerate
+#                 if duration > max_duration:
+#                     stats['too_long_duration'] += 1
+#                     continue
+
+#             except Exception as e:
+#                 logger.warning(f"{path}:{line_no} failed to read audio: {e}")
+#                 continue                
+
+#             entry["duration"] = duration
+
+#             stats['duration_sum'] += duration
+#             stats['duration_max'] = max(stats.get('duration_max', 0), duration)
+#             stats['duration_min'] = min(stats.get('duration_min', float('inf')), duration)
+#             samples.append(entry)
+
+#     stats['duration_avg'] = stats.get('duration_sum', 0) / len(samples) if samples else 0.0
+#     logger.info(f"samples: {len(samples)}")
+#     for k in sorted(stats.keys()): # traverse stats lexicographically sorted by key and log content
+#         logger.info(f"{k}: {stats[k]:.2f}") if isinstance(stats[k], float) else logger.info(f"{k}: {stats[k]}")
+
+#     return samples
+
+
+def _process_entry(entry, line_no, path, max_duration, split, slang, tlang):
     """
-    Read samples from a JSONL file and build training examples.
-    """    
+    Process a single JSONL entry.
+    Returns: (entry_or_None, stats_dict)
+    """
+    stats = defaultdict(int)
+
+    if split is not None and entry.get("split", "") != split:
+        return None, stats
+
+    audio_path = entry.get("audio_file") or entry.get("audio_path")
+    if audio_path is None:
+        stats["missing_audio_path"] += 1
+        return None, stats
+
+    transcription = entry.get("transcription")
+    if transcription is not None:
+        src_lang = transcription.get("lang", "").strip()
+        if not src_lang:
+            stats["empty_src_lang"] += 1
+            return None, stats
+        if slang is not None and src_lang != slang:
+            return None, stats
+
+        src_text = transcription.get("text", "").strip()
+        if not src_text:
+            stats["empty_src_text"] += 1
+            return None, stats
+    else:
+        stats["missing_transcriptions"] += 1
+
+    translation = entry.get("translation")
+    if translation is not None:
+        tgt_lang = translation.get("lang", "").strip()
+        if not tgt_lang:
+            stats["empty_tgt_lang"] += 1
+            return None, stats
+        if tlang is not None and tgt_lang != tlang:
+            return None, stats
+
+        tgt_text = translation.get("text", "").strip()
+        if not tgt_text:
+            stats["empty_tgt_text"] += 1
+            return None, stats
+    else:
+        stats["missing_translations"] += 1
+
+    try:
+        info = sf.info(audio_path)
+        if not info.frames or not info.samplerate:
+            stats["invalid_audio_info"] += 1
+            return None, stats
+
+        duration = info.frames / info.samplerate
+        if duration > max_duration:
+            stats["too_long_duration"] += 1
+            return None, stats
+
+    except Exception as e:
+        logger.warning(f"{path}:{line_no} failed to read audio: {e}")
+        stats["audio_read_error"] += 1
+        return None, stats
+
+    entry["duration"] = duration
+    stats["duration_sum"] += duration
+    stats["duration_max"] = duration
+    stats["duration_min"] = duration
+
+    return entry, stats
+
+
+def read_samples_from_jsonl(
+    path: str,
+    max_duration: float = 30.0,
+    sep: str = "\t",
+    split=None,
+    slang=None,
+    tlang=None,
+    use_tqdm=True,
+    num_workers: int = 32,
+):
+    """
+    Read samples from a JSONL file and build training examples (parallel audio metadata).
+    """
     samples = []
     stats = defaultdict(int)
 
-    # read jsonl line by line
-    with open(path, "r", encoding="utf-8") as f:
-        for line_no, line in enumerate(tqdm(f, desc=f"Reading {Path(path).name}", unit=" sample", disable=not use_tqdm), start=1):
-        
+    with open(path, "r", encoding="utf-8") as f, ThreadPoolExecutor(max_workers=num_workers) as ex:
+
+        futures = []
+        for line_no, line in enumerate(f, start=1):
             entry = json.loads(line)
+            futures.append(
+                ex.submit(
+                    _process_entry,
+                    entry,
+                    line_no,
+                    path,
+                    max_duration,
+                    split,
+                    slang,
+                    tlang,
+                )
+            )
 
-            if split is not None:
-                if entry.get("split", "") != split:
-                    continue
+        for future in tqdm(
+            as_completed(futures),
+            total=len(futures),
+            desc=f"Reading {Path(path).name}",
+            unit=" sample",
+            disable=not use_tqdm,
+        ):
+            entry, local_stats = future.result()
 
-            audio_path = entry.get("audio_file", None)
-            if audio_path is None:
-                audio_path = entry.get("audio_path")
-            if audio_path is None:
-                stats['missing_audio_path'] += 1
-                continue
+            for k, v in local_stats.items():
+                if k in ("duration_max", "duration_min"):
+                    if k == "duration_max":
+                        stats[k] = max(stats.get(k, 0), v)
+                    else:
+                        stats[k] = min(stats.get(k, float("inf")), v)
+                else:
+                    stats[k] += v
 
-            transcription = entry.get("transcription")
+            if entry is not None:
+                samples.append(entry)
 
-            if transcription is not None:
-                # ASR sample
-                src_lang = transcription.get("lang", "").strip()
-                if not src_lang:
-                    stats['empty_src_lang'] += 1
-                    continue
-                if slang is not None and src_lang != slang:
-                    continue
-
-                src_text = transcription.get("text", "").strip()
-                if not src_text:
-                    stats['empty_src_text'] += 1
-                    continue
-            else:
-                stats['missing_transcriptions'] += 1
-            
-
-            translation = entry.get("translation")
-
-            if translation is not None:
-                # STT sample
-                tgt_lang = translation.get("lang", "").strip()
-                if not tgt_lang:
-                    stats['empty_tgt_lang'] += 1
-                    continue
-                if tlang is not None and tgt_lang != tlang:
-                    continue
-
-                tgt_text = translation.get("text", "").strip()
-                if not tgt_text:
-                    stats['empty_tgt_text'] += 1
-                    continue
-            else:
-                stats['missing_translations'] += 1
-
-
-            try:
-                info = sf.info(audio_path)
-                if not info.duration:
-                    stats['invalid_duration'] += 1
-                    continue
-                if info.duration > max_duration:
-                    stats['too_long_duration'] += 1
-                    continue
-
-            except Exception as e:
-                logger.warning(f"{path}:{line_no} failed to read audio: {e}")
-                continue                
-
-            entry["duration"] = info.duration
-
-            stats['duration_sum'] += info.duration
-            stats['duration_max'] = max(stats.get('duration_max', 0), info.duration)
-            stats['duration_min'] = min(stats.get('duration_min', float('inf')), info.duration)
-            samples.append(entry)
-
-    stats['duration_avg'] = stats.get('duration_sum', 0) / len(samples) if samples else 0.0
-    logger.info(f"samples: {len(samples)}")
-    for k in sorted(stats.keys()): # traverse stats lexicographically sorted by key and log content
-        logger.info(f"{k}: {stats[k]:.2f}") if isinstance(stats[k], float) else logger.info(f"{k}: {stats[k]}")
-
-    return samples
+    return samples, stats
