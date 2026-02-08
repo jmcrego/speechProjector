@@ -192,6 +192,7 @@ def filter_samples(samples, tokenizer, max_seq_len):
         split_slang.add((split, slang))
         unique_audio_files.add(audio_file)
 
+    logger.info(f"Found {len(split_slang)} split/slang combinations after filtering")
     logger.info(f"Found {len(unique_audio_files)} unique audio files after filtering")
     for k in sorted(stats.keys()):
         logger.info(f"{k}: {stats[k]}")
