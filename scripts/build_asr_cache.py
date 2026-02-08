@@ -62,6 +62,12 @@ def save_bucket(samples, bucket, cache_dir, bucket_id):
         samples[idx]["offset"] = i
         #not used: samples[idx]["n_audio_embs"] = embs.shape[1]  # T
 
+    # 🔴 CRITICAL
+    del embs
+    bucket.clear()
+    import gc
+    gc.collect()
+
 
 def save_samples_in_buckets(audio_embedder, samples, cache_dir, batch_size, bucket_size, device, torch_dtype):
     # embed (batch_size) samples and save embeddings in files containing bucket_size samples
@@ -86,12 +92,18 @@ def save_samples_in_buckets(audio_embedder, samples, cache_dir, batch_size, buck
             batch_indices = []
 
         # process bucket
-        while len(bucket) >= bucket_size:
+        if len(bucket) == bucket_size:
             tic = time.time()
-            save_bucket(samples, bucket[:bucket_size], cache_dir, bucket_id)
+            save_bucket(samples, bucket, cache_dir, bucket_id)
             t_saving += time.time() - tic
-            bucket = bucket[bucket_size:]
             bucket_id += 1
+
+        # while len(bucket) >= bucket_size:
+        #     tic = time.time()
+        #     save_bucket(samples, bucket[:bucket_size], cache_dir, bucket_id)
+        #     t_saving += time.time() - tic
+        #     bucket = bucket[bucket_size:]
+        #     bucket_id += 1
 
     # process remaining batch
     if batch_indices:
@@ -101,12 +113,17 @@ def save_samples_in_buckets(audio_embedder, samples, cache_dir, batch_size, buck
         bucket.extend(split_batch(batch_indices, audio_embs_cpu))
 
     # process remaining bucket
-    while bucket:
+    if len(bucket):
         tic = time.time()
-        save_bucket(samples, bucket[:bucket_size], cache_dir, bucket_id)
+        save_bucket(samples, bucket, cache_dir, bucket_id)
         t_saving += time.time() - tic
-        bucket = bucket[bucket_size:]
         bucket_id += 1
+    # while bucket:
+    #     tic = time.time()
+    #     save_bucket(samples, bucket[:bucket_size], cache_dir, bucket_id)
+    #     t_saving += time.time() - tic
+    #     bucket = bucket[bucket_size:]
+    #     bucket_id += 1
 
     logger.info(f"Saved {len(samples)} embeddings in {bucket_id} buckets dir={cache_dir}")
     logger.info(f"Embedding time = {t_embedding:.2f}s, Saving time = {t_saving:.2f}s")
