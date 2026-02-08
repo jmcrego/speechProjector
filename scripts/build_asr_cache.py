@@ -64,7 +64,7 @@ def save_samples_in_buckets(
     bucket_indices = []
     bucket_fill = 0
 
-    for start in tqdm(total=len(samples), desc="Embedding audio", unit=" sample"):
+    for start in tqdm(range(0, len(samples), batch_size), desc="Embedding audio", unit=" batch"):
         end = min(start + batch_size, len(samples))
         batch_indices = list(range(start, end))
 
@@ -76,9 +76,9 @@ def save_samples_in_buckets(
 
             # allocate bucket tensor lazily
             if bucket_embs is None:
-                bucket_embs = torch.empty( (bucket_size, *emb.shape), device="cpu", dtype=emb.dtype, pin_memory=True)
+                bucket_embs = torch.empty( (bucket_size, *emb.shape), device="cpu", dtype=emb.dtype)
 
-            bucket_embs[bucket_fill].copy_(emb, non_blocking=True) # copy to bucket tensor on CPU (to free GPU memory asap), non_blocking if pinned memory
+            bucket_embs[bucket_fill].copy_(emb) # copy to bucket tensor on CPU (to free GPU memory asap), non_blocking if pinned memory
             bucket_indices.append(idx)
             bucket_fill += 1 # bucket_fill tracks how many samples are currently in bucket_embs
 
@@ -91,7 +91,6 @@ def save_samples_in_buckets(
                 bucket_fill = 0
 
         del audio_embs
-        torch.cuda.empty_cache()
 
     # flush remainder
     if bucket_fill > 0:
