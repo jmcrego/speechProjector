@@ -66,6 +66,7 @@ def save_samples_in_buckets(
     """
     
     os.makedirs(cache_dir, exist_ok=True)
+    samples_path = os.path.join(cache_dir, "samples.jsonl")
 
     bucket_id = 0
     bucket_embs = None
@@ -86,71 +87,71 @@ def save_samples_in_buckets(
         logger.info(f"No samples found for split={split_filter}, slang={slang_filter}")
         return samples
 
-    # new_samples must contain the savec samples with fields:
-    # audio_file, text, len, pt_path, offset
-    new_samples = []
+    # open JSONL file in append mode
+    with open(samples_path, "w", encoding="utf-8") as f_jsonl:
 
-    # process in batches
-    for start in tqdm(range(0, len(matching_indices), batch_size), desc=f"Embedding {split_filter}-{slang_filter}", unit=" batch"):
-        end = min(start + batch_size, len(matching_indices))
-        batch_indices = matching_indices[start:end]
+        # process in batches
+        for start in tqdm(range(0, len(matching_indices), batch_size), desc=f"Embedding {split_filter}-{slang_filter}", unit=" batch"):
+            end = min(start + batch_size, len(matching_indices))
+            batch_indices = matching_indices[start:end]
 
-        # Embed a batch and move to CPU immediately to free GPU memory
-        audio_embs = process_batch(audio_embedder, samples, batch_indices, device, torch_dtype)
+            # Embed a batch and move to CPU immediately to free GPU memory
+            audio_embs = process_batch(audio_embedder, samples, batch_indices, device, torch_dtype)
 
-        for i, idx in enumerate(batch_indices):
-            emb = audio_embs[i]
+            for i, idx in enumerate(batch_indices):
+                emb = audio_embs[i]
 
-            # allocate bucket tensor lazily
-            if bucket_embs is None:
-                bucket_embs = torch.empty((bucket_size, *emb.shape), device="cpu", dtype=emb.dtype)
+                # allocate bucket tensor lazily
+                if bucket_embs is None:
+                    bucket_embs = torch.empty((bucket_size, *emb.shape), device="cpu", dtype=emb.dtype)
 
-            # copy embedding to bucket
-            bucket_embs[bucket_fill].copy_(emb)
-            bucket_indices.append(idx)
-            bucket_fill += 1
+                # copy embedding to bucket
+                bucket_embs[bucket_fill].copy_(emb)
+                bucket_indices.append(idx)
+                bucket_fill += 1
 
-            # save bucket if full
-            if bucket_fill == bucket_size:
-                save_bucket_tensor(samples, bucket_embs, bucket_indices, cache_dir, bucket_id)
+                # save bucket if full
+                if bucket_fill == bucket_size:
+                    save_bucket_tensor(samples, bucket_embs, bucket_indices, cache_dir, bucket_id)
 
-                # add saved samples to new_samples
-                for j, s_idx in enumerate(bucket_indices):
-                    s = samples[s_idx]
-                    new_samples.append({
-                        "audio_file": s["audio_file"],
-                        "text": s["transcription"]["text"],
-                        "len": s["len"],
-                        "pt_path": s["pt_path"],
-                        "offset": s["offset"]
-                    })
+                    # write sample metadata to file
+                    for s_idx in bucket_indices:
+                        s = samples[s_idx]
+                        json.dump({
+                            "audio_file": s["audio_file"],
+                            "text": s["transcription"]["text"],
+                            "pt_path": s["pt_path"],
+                            "offset": s["offset"]
+                        }, f_jsonl, ensure_ascii=False)
+                        f_jsonl.write("\n")
+                    f_jsonl.flush()
 
-                bucket_id += 1
-                bucket_embs = None
-                bucket_indices.clear()
-                bucket_fill = 0
+                    bucket_id += 1
+                    bucket_embs = None
+                    bucket_indices.clear()
+                    bucket_fill = 0
 
-        del audio_embs
-        torch.cuda.empty_cache()
+            del audio_embs
+            torch.cuda.empty_cache()
 
-    # flush remainder
-    if bucket_fill > 0:
-        save_bucket_tensor(samples, bucket_embs[:bucket_fill], bucket_indices, cache_dir, bucket_id)
+        # flush remainder
+        if bucket_fill > 0:
+            save_bucket_tensor(samples, bucket_embs[:bucket_fill], bucket_indices, cache_dir, bucket_id)
 
-        for j, s_idx in enumerate(bucket_indices):
-            s = samples[s_idx]
-            new_samples.append({
-                "audio_file": s["audio_file"],
-                "text": s["transcription"]["text"],
-                "len": s["len"],
-                "pt_path": s["pt_path"],
-                "offset": s["offset"]
-            })
+            for s_idx in bucket_indices:
+                s = samples[s_idx]
+                json.dump({
+                    "audio_file": s["audio_file"],
+                    "text": s["transcription"]["text"],
+                    "pt_path": s["pt_path"],
+                    "offset": s["offset"]
+                }, f_jsonl, ensure_ascii=False)
+                f_jsonl.write("\n")
+            f_jsonl.flush()
 
-        bucket_id += 1
+            bucket_id += 1
 
     logger.info(f"Saved embeddings for split={split_filter}, slang={slang_filter} in {bucket_id} buckets dir={cache_dir}")
-    return new_samples
 
 
 
@@ -247,9 +248,8 @@ if __name__ == "__main__":
 
         cache_dir = os.path.join(args.json_path + "_CACHE_ASR", f"{split}/{slang}")
         meta_path = os.path.join(cache_dir, "meta.json")
-        samples_path = os.path.join(cache_dir, "samples.jsonl")
 
-        if os.path.exists(meta_path) and os.path.exists(samples_path):
+        if os.path.exists(meta_path):
             logger.info(f"Cache directory {cache_dir} already contains meta.json/samples.jsonl, skipping embedding/saving")
             continue
 
@@ -273,8 +273,5 @@ if __name__ == "__main__":
         with open(meta_path, "w", encoding="utf-8") as f:
             json.dump(info, f, ensure_ascii=False, indent=2)
 
-        with open(samples_path, "w", encoding="utf-8") as f:
-            for s in samples:
-                f.write(json.dumps(s, ensure_ascii=False) + "\n")
 
     logger.info(f"Total time: {time.time() - tic:.2f}s")
