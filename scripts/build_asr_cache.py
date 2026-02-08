@@ -208,6 +208,7 @@ if __name__ == "__main__":
 
     # Initialize embedder
     torch_dtype = getattr(torch, args.dtype)
+    device = torch.device(args.device)
     audio_embedder = Embedder(config={'path': args.embedder_path})
     audio_embedder.to(args.device, dtype=torch_dtype)
     audio_embedder.eval()
@@ -232,7 +233,7 @@ if __name__ == "__main__":
         # samples.sort(key=lambda x: (x["len"], x["audio_file"])) 
 
         ### embed audio and save buckets of samples with their embeddings ###
-        samples = save_samples_in_buckets(audio_embedder, samples, cache_dir, args.batch_size, args.bucket_size, args.device, torch_dtype)
+        samples = save_samples_in_buckets(audio_embedder, samples, cache_dir, args.batch_size, args.bucket_size, device, torch_dtype)
 
         ### save meta and samples for this combination (split, slang) ###
         info = {
