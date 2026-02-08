@@ -15,7 +15,7 @@ from scripts.utils import read_samples_from_jsonl
 from scripts.text_normalize import normalize_text
 from Embedder import Embedder
 
-logger = logging.getLogger("build_audio_cache")
+logger = logging.getLogger("build_asr_cache")
 
 
 def process_batch(audio_embedder, samples, batch_indices, device, dtype):
@@ -26,7 +26,7 @@ def process_batch(audio_embedder, samples, batch_indices, device, dtype):
     audio_paths = [samples[idx]["audio_file"] for idx in batch_indices]
 
     with torch.no_grad():
-        with torch.amp.autocast(device_type='cuda', dtype=dtype, enabled=(device == "cuda")):
+        with torch.amp.autocast(device_type='cuda', dtype=dtype, enabled=(device.type == "cuda")):
             audio_res = audio_embedder(audio_paths)  # Whisper: ignore mask
 
         audio_embs = audio_res[0] if isinstance(audio_res, tuple) else audio_res
@@ -63,7 +63,7 @@ def save_bucket(samples, bucket, cache_dir, bucket_id):
         #not used: samples[idx]["n_audio_embs"] = embs.shape[1]  # T
 
 
-def save_samples(audio_embedder, samples, cache_dir, batch_size, bucket_size, device, torch_dtype):
+def save_samples_in_buckets(audio_embedder, samples, cache_dir, batch_size, bucket_size, device, torch_dtype):
     # embed (batch_size) samples and save embeddings in files containing bucket_size samples
     batch_indices = []
     bucket = []
@@ -80,6 +80,8 @@ def save_samples(audio_embedder, samples, cache_dir, batch_size, bucket_size, de
         # process batch
         if len(batch_indices) == batch_size:
             tic = time.time()
+            len_chars = [len(samples[i]["text"]) for i in batch_indices]
+            logger.info(f"Processing batch of {len(len_chars)} samples with char lens={len_chars}")
             audio_embs_cpu = process_batch(audio_embedder, samples, batch_indices, device, torch_dtype)
             t_embedding += time.time() - tic
             bucket.extend(split_batch(batch_indices, audio_embs_cpu))
@@ -148,7 +150,7 @@ def filter_and_group_samples(samples, tokenizer=None, max_seq_len=None):
                 stats['too_long_text'] += 1
                 continue
 
-        s = {"audio_file": audio_file, "text": text, "len": len(text)} #, "idx": idx, "split": split, "slang": slang}
+        s = {"audio_file": audio_file, "text": text, "len": len(ids)} #, "idx": idx, "split": split, "slang": slang}
         combination2samples[(split, slang)].append(s)
         splits.add(split)
         slangs.add(slang)
@@ -161,6 +163,11 @@ def filter_and_group_samples(samples, tokenizer=None, max_seq_len=None):
 
     logger.info(f"Splits: {splits}")
     logger.info(f"slangs: {slangs}")
+
+    combinations = list(combination2samples.keys())
+    logger.info("Combinations (split, slang) and their counts:")
+    for split, slang in combinations.sort(key=lambda x: (len(combination2samples[x]), x[0], x[1]), reverse=True):
+        logger.info(f"  ({split}, {slang}): {len(combination2samples[(split, slang)])} samples")    
 
     return combination2samples
 
@@ -190,13 +197,8 @@ if __name__ == "__main__":
     # Read JSON samples
     samples = read_samples_from_jsonl(args.json_path, max_duration=30.0)
 
+    # Filter and group samples by (split, slang)
     combination2samples = filter_and_group_samples(samples, tokenizer, max_seq_len=args.max_seq_len)
-    combinations = list(combination2samples.keys())
-    combinations.sort(key=lambda x: (len(combination2samples[x]), x[0], x[1]), reverse=True)
-    logger.info("Combinations (split, slang) and their counts:")
-    for split, slang in combinations:
-        count = len(combination2samples[(split, slang)])
-        logger.info(f"  ({split}, {slang}): {count} samples")    
 
     if len (combination2samples) == 0:
         logger.info("No samples to process after filtering.")
@@ -209,24 +211,26 @@ if __name__ == "__main__":
     audio_embedder.to(args.device, dtype=torch_dtype)
     audio_embedder.eval()
 
-    for idx, (split, slang) in enumerate(combinations, 1):
-        combination_samples = combination2samples[(split, slang)]
-        logger.info(f"Combination {idx}/{len(combination2samples.keys())} ({split}, {slang}): {len(combination_samples)} samples")
-
-        ### sorting is not really needed since in stage1 transcriptions are filled with padding tokens to max_seq_len, but it doesn't hurt to have a deterministic order
-        combination_samples.sort(key=lambda x: (x["len"], x["audio_file"])) 
+    for idx, (split, slang) in enumerate(combination2samples.keys(), 1):
+        samples = combination2samples[(split, slang)]
+        logger.info(f"Combination {idx}/{len(combination2samples.keys())} ({split}, {slang}): {len(samples)} samples")
 
         cache_dir = os.path.join(args.json_path + "_CACHE_ASR", f"{split}/{slang}")
-        if os.path.exists(os.path.join(cache_dir, "meta.json")):
-            logger.info(f"Cache directory {cache_dir} already contains meta.json, skipping embedding/saving")
-            continue
-
-        samples = save_samples(audio_embedder, combination_samples, cache_dir, args.batch_size, args.bucket_size, args.device, torch_dtype)
-
         meta_path = os.path.join(cache_dir, "meta.json")
         samples_path = os.path.join(cache_dir, "samples.jsonl")
 
-        # Save meta.json
+        if os.path.exists(meta_path) and os.path.exists(samples_path):
+            logger.info(f"Cache directory {cache_dir} already contains meta.json/samples.jsonl, skipping embedding/saving")
+            continue
+
+        ### sorting is not really needed for stage1 ###
+        ### transcriptions are filled with padding tokens to max_seq_len ###
+        # samples.sort(key=lambda x: (x["len"], x["audio_file"])) 
+
+        ### embed audio and save buckets of samples with their embeddings ###
+        samples = save_samples_in_buckets(audio_embedder, samples, cache_dir, args.batch_size, args.bucket_size, args.device, torch_dtype)
+
+        ### save meta and samples for this combination (split, slang) ###
         info = {
             "json_path": args.json_path,
             "cache_dir": cache_dir,
@@ -239,11 +243,9 @@ if __name__ == "__main__":
         with open(meta_path, "w", encoding="utf-8") as f:
             json.dump(info, f, ensure_ascii=False, indent=2)
 
-        # Save samples.jsonl
         with open(samples_path, "w", encoding="utf-8") as f:
             for s in samples:
                 f.write(json.dumps(s, ensure_ascii=False) + "\n")
 
-        logger.info(f"Saved {meta_path} {samples_path}")
 
     logger.info(f"Total time: {time.time() - tic:.2f}s")
