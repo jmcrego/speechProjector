@@ -35,13 +35,6 @@ def process_batch(audio_embedder, samples, batch_indices, device, dtype):
     return audio_embs.cpu().contiguous()
 
 
-def split_batch(batch_indices, audio_embs):
-    """
-    Convert batch embeddings into a list of (index, embedding) tuples.
-    """
-    return [(idx, audio_embs[i]) for i, idx in enumerate(batch_indices)]
-
-
 def save_bucket_tensor(samples, embs, indices, cache_dir, bucket_id):
     pt_path = os.path.join(cache_dir, f"bucket_bs{len(indices)}_{bucket_id:06d}.pt")
     tmp_path = pt_path + ".tmp"
