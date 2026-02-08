@@ -259,9 +259,9 @@ if __name__ == "__main__":
         # samples.sort(key=lambda x: (x["len"], x["audio_file"])) 
 
         ### embed audio and save buckets of samples with their embeddings ###
-        samples = save_samples_in_buckets(audio_embedder, samples, split, slang, cache_dir, args.batch_size, args.bucket_size, device, torch_dtype)
+        save_samples_in_buckets(audio_embedder, samples, split, slang, cache_dir, args.batch_size, args.bucket_size, device, torch_dtype)
 
-        ### save meta and samples for this combination (split, slang) ###
+        ### save meta for this combination (split, slang) ###
         info = {
             "json_path": args.json_path,
             "cache_dir": cache_dir,
