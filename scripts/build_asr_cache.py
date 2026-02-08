@@ -92,7 +92,7 @@ def save_samples_in_buckets(
 
         del audio_embs
 
-    # flush remainder
+    # save remainder
     if bucket_fill > 0:
         save_bucket_tensor(samples, bucket_embs[:bucket_fill], bucket_indices, cache_dir, bucket_id)
         bucket_id += 1
@@ -106,8 +106,6 @@ def filter_and_group_samples(samples, tokenizer=None, max_seq_len=None):
 
     combination2samples = defaultdict(list) # dict of (split, slang) → list of samples
     unique_audio_files = set() 
-    splits = set()
-    slangs = set()
     stats = defaultdict(int)
 
     for s in tqdm(samples, total=len(samples), desc="Filtering samples", unit=" sample"):
@@ -138,17 +136,12 @@ def filter_and_group_samples(samples, tokenizer=None, max_seq_len=None):
 
         s = {"audio_file": audio_file, "text": text, "len": len(ids) if tokenizer is not None else 0} #, "idx": idx, "split": split, "slang": slang}
         combination2samples[(split, slang)].append(s)
-        splits.add(split)
-        slangs.add(slang)
         unique_audio_files.add(audio_file)
 
 
     logger.info(f"Found {len(unique_audio_files)} unique audio files after filtering")
     for k in sorted(stats.keys()):
         logger.info(f"{k}: {stats[k]}")
-
-    logger.info(f"Splits: {splits}")
-    logger.info(f"slangs: {slangs}")
 
     # sort combinations by numbmer of samples (descending), then by split and slang (ascending)
     combinations_sorted = sorted(combination2samples.keys(), key=lambda x: (len(combination2samples[x]), x[0], x[1]), reverse=False)
