@@ -147,7 +147,7 @@ def filter_and_group_samples(samples, tokenizer=None, max_seq_len=None):
                 stats['too_long_text'] += 1
                 continue
 
-        s = {"audio_file": audio_file, "text": text} 
+        s = {"audio_file": audio_file, "text": text, "len": len(text)}
         combination2samples[(split, slang)].append(s)
         splits.add(split)
         slangs.add(slang)
