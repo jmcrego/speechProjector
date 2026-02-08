@@ -78,9 +78,9 @@ def save_samples_in_buckets(
         i for i, s in enumerate(samples)
         if s.get("len") is not None
         and s.get("text", "")
+        and s.get("audio_file", "")
         and s.get("split", "") == split_filter
         and s.get("transcription", {}).get("lang", "") == slang_filter
-        and s.get("audio_file", "")
     ]
 
     if not matching_indices:
