@@ -80,8 +80,6 @@ def save_samples_in_buckets(audio_embedder, samples, cache_dir, batch_size, buck
         # process batch
         if len(batch_indices) == batch_size:
             tic = time.time()
-            len_chars = [len(samples[i]["text"]) for i in batch_indices]
-            logger.info(f"Processing batch of {len(len_chars)} samples with char lens={len_chars}")
             audio_embs_cpu = process_batch(audio_embedder, samples, batch_indices, device, torch_dtype)
             t_embedding += time.time() - tic
             bucket.extend(split_batch(batch_indices, audio_embs_cpu))
