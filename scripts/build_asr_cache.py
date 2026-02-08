@@ -77,10 +77,10 @@ def save_samples_in_buckets(
     matching_indices = [
         i for i, s in enumerate(samples)
         if s.get("len") is not None
+        and s.get("text", "")
         and s.get("split", "") == split_filter
         and s.get("transcription", {}).get("lang", "") == slang_filter
         and s.get("audio_file", "")
-        and s.get("transcription", {}).get("text", "")
     ]
 
     if not matching_indices:
@@ -189,6 +189,7 @@ def filter_samples(samples, tokenizer, max_seq_len):
             continue
 
         s["len"] = len(ids)
+        s["text"] = text
         split_slang.add((split, slang))
         unique_audio_files.add(audio_file)
 
