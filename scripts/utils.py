@@ -206,7 +206,7 @@ def compute_grad_norm(params, eps=1e-6):
 #     return samples
 
 
-def _process_entry(entry, line_no, path, max_duration, split, slang, tlang):
+def _process_entry(entry, path, max_duration, split, slang, tlang):
     """
     Process a single JSONL entry.
     Returns: (entry_or_None, stats_dict)
@@ -265,7 +265,7 @@ def _process_entry(entry, line_no, path, max_duration, split, slang, tlang):
             return None, stats
 
     except Exception as e:
-        logger.warning(f"{path}:{line_no} failed to read audio: {e}")
+        logger.warning(f"{path}:{entry['idx']} failed to read audio: {e}")
         stats["audio_read_error"] += 1
         return None, stats
 
@@ -297,20 +297,10 @@ def read_samples_from_jsonl(
     with open(path, "r", encoding="utf-8") as f, ThreadPoolExecutor(max_workers=num_workers) as ex:
 
         futures = []
-        for line_no, line in enumerate(f, start=1):
+        for idx, line in enumerate(f, start=1):
             entry = json.loads(line)
-            futures.append(
-                ex.submit(
-                    _process_entry,
-                    entry,
-                    line_no,
-                    path,
-                    max_duration,
-                    split,
-                    slang,
-                    tlang,
-                )
-            )
+            entry['idx'] = idx
+            futures.append( ex.submit(_process_entry, entry, path, max_duration, split, slang, tlang) )
 
         for future in tqdm(
             as_completed(futures),
@@ -333,4 +323,15 @@ def read_samples_from_jsonl(
             if entry is not None:
                 samples.append(entry)
 
-    return samples, stats
+    stats['duration_avg'] = stats.get('duration_sum', 0) / len(samples) if samples else 0.0
+    hours, minutes, seconds = 0, 0, 0
+    if stats.get('duration_sum', 0) > 0:
+        hours = int(stats['duration_sum'] // 3600)
+        minutes = int((stats['duration_sum'] % 3600) // 60)
+        seconds = int(stats['duration_sum'] % 60)
+    stats['duration_sum'] = f"{hours}h{minutes}m{seconds}s"
+    logger.info(f"samples: {len(samples)}")
+    for k in sorted(stats.keys()): # traverse stats lexicographically sorted by key and log content
+        logger.info(f"{k}: {stats[k]:.2f}") if isinstance(stats[k], float) else logger.info(f"{k}: {stats[k]}")
+
+    return samples
