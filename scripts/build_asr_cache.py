@@ -179,7 +179,7 @@ if __name__ == "__main__":
     parser.add_argument("--device", type=str, default="cuda", help="Device for embeddings")
     parser.add_argument("--dtype", type=str, default="float16", help="Torch dtype for embeddings")
     parser.add_argument("--batch_size", type=int, default=64, help="Number of samples to fed to embedder")
-    parser.add_argument("--bucket_size", type=int, default=256, help="Number of samples per saved bucket")
+    parser.add_argument("--bucket_size", type=int, default=64, help="Number of samples per saved bucket")
     parser.add_argument("--max_seq_len", type=int, default=1500 // 15, help="Max sequence length of the transcription. Usually the number of embeddings output by the projector (WHISPER_frames=1500 // PROJECTOR_conv_stride)")
     args = parser.parse_args()
 
