@@ -26,7 +26,7 @@ def process_batch(audio_embedder, samples, batch_indices, device, dtype):
     audio_paths = [samples[idx]["audio_file"] for idx in batch_indices]
 
     with torch.no_grad():
-        with torch.amp.autocast(device_type='cuda', dtype=dtype, enabled=(device.type == "cuda")):
+        with torch.amp.autocast(device_type=device.type, dtype=dtype, enabled=(device.type == "cuda")):
             audio_res = audio_embedder(audio_paths)  # Whisper: ignore mask
 
         audio_embs = audio_res[0] if isinstance(audio_res, tuple) else audio_res
@@ -150,7 +150,7 @@ def filter_and_group_samples(samples, tokenizer=None, max_seq_len=None):
                 stats['too_long_text'] += 1
                 continue
 
-        s = {"audio_file": audio_file, "text": text, "len": len(ids)} #, "idx": idx, "split": split, "slang": slang}
+        s = {"audio_file": audio_file, "text": text, "len": len(ids) if tokenizer is not None else 0} #, "idx": idx, "split": split, "slang": slang}
         combination2samples[(split, slang)].append(s)
         splits.add(split)
         slangs.add(slang)
