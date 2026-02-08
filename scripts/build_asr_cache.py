@@ -245,7 +245,7 @@ if __name__ == "__main__":
 
     for idx, (split, slang) in enumerate(split_slang):
         # samples = combination2samples[(split, slang)]
-        # logger.info(f"Combination {idx}/{len(combination2samples.keys())} ({split}, {slang}): {len(samples)} samples")
+        logger.info(f"Saving {idx}/{len(split_slang)} combination ({split}, {slang})")
 
         cache_dir = os.path.join(args.json_path + "_CACHE_ASR", f"{split}/{slang}")
         meta_path = os.path.join(cache_dir, "meta.json")
