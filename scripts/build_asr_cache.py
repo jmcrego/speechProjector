@@ -4,6 +4,7 @@ import logging
 import torch
 import json
 import os
+import gc
 import sys
 import time
 from collections import defaultdict
@@ -41,94 +42,143 @@ def split_batch(batch_indices, audio_embs):
     return [(idx, audio_embs[i]) for i, idx in enumerate(batch_indices)]
 
 
-def save_bucket(samples, bucket, cache_dir, bucket_id):
-    """
-    Save a bucket of embeddings to disk and update sample metadata.
-    """
-    pt_path = os.path.join(cache_dir, f"bucket_bs{len(bucket)}_{bucket_id:06d}.pt")
+def save_bucket_tensor(samples, embs, indices, cache_dir, bucket_id):
+    pt_path = os.path.join(cache_dir, f"bucket_bs{len(indices)}_{bucket_id:06d}.pt")
     tmp_path = pt_path + ".tmp"
 
-    indices = [idx for idx, _ in bucket]
-    embs = torch.stack([emb for _, emb in bucket])  # (B, T, D)
-
-    # do not save if file already exists (can happen if multiple processes are running this script with same cache_dir)
     if not os.path.exists(pt_path):
-        torch.save({"audio_embs": embs}, tmp_path, _use_new_zipfile_serialization=False)
+        torch.save({"audio_embs": embs}, tmp_path)
         os.replace(tmp_path, pt_path)
 
-    # update sample metadata
     for i, idx in enumerate(indices):
         samples[idx]["pt_path"] = os.path.basename(pt_path)
         samples[idx]["offset"] = i
-        #not used: samples[idx]["n_audio_embs"] = embs.shape[1]  # T
-
-    # 🔴 CRITICAL
-    del embs
-    bucket.clear()
-    import gc
-    gc.collect()
 
 
-def save_samples_in_buckets(audio_embedder, samples, cache_dir, batch_size, bucket_size, device, torch_dtype):
-    # embed (batch_size) samples and save embeddings in files containing bucket_size samples
-    batch_indices = []
-    bucket = []
-    bucket_id = 0
-    t_embedding = 0.0
-    t_saving = 0.0
-
+def save_samples_in_buckets(
+    audio_embedder,
+    samples,
+    cache_dir,
+    batch_size,
+    bucket_size,
+    device,
+    torch_dtype,
+):
     os.makedirs(cache_dir, exist_ok=True)
 
-    for idx in tqdm(range(len(samples)), total=len(samples), desc="Embedding audio", unit=" sample"):
+    bucket_id = 0
+    bucket_embs = None
+    bucket_indices = []
+    bucket_fill = 0
 
-        batch_indices.append(idx)
+    for start in tqdm(range(0, len(samples), batch_size), desc="Embedding audio", unit=" sample",):
+        end = min(start + batch_size, len(samples))
+        batch_indices = list(range(start, end))
 
-        # process batch
-        if len(batch_indices) == batch_size:
-            tic = time.time()
-            audio_embs_cpu = process_batch(audio_embedder, samples, batch_indices, device, torch_dtype)
-            t_embedding += time.time() - tic
-            bucket.extend(split_batch(batch_indices, audio_embs_cpu))
-            batch_indices = []
+        audio_embs = process_batch(audio_embedder, samples, batch_indices, device, torch_dtype)
 
-        # process bucket
-        if len(bucket) == bucket_size:
-            tic = time.time()
-            save_bucket(samples, bucket, cache_dir, bucket_id)
-            t_saving += time.time() - tic
-            bucket_id += 1
+        for i, idx in enumerate(batch_indices):
+            emb = audio_embs[i]
 
-        # while len(bucket) >= bucket_size:
-        #     tic = time.time()
-        #     save_bucket(samples, bucket[:bucket_size], cache_dir, bucket_id)
-        #     t_saving += time.time() - tic
-        #     bucket = bucket[bucket_size:]
-        #     bucket_id += 1
+            # allocate bucket tensor lazily
+            if bucket_embs is None:
+                bucket_embs = torch.empty( (bucket_size, *emb.shape), device="cpu", dtype=emb.dtype, pin_memory=True)
 
-    # process remaining batch
-    if batch_indices:
-        tic = time.time()
-        audio_embs_cpu = process_batch(audio_embedder, samples, batch_indices, device, torch_dtype)
-        t_embedding += time.time() - tic
-        bucket.extend(split_batch(batch_indices, audio_embs_cpu))
+            bucket_embs[bucket_fill].copy_(emb, non_blocking=True) # copy to bucket tensor on CPU (to free GPU memory asap), non_blocking if pinned memory
+            bucket_indices.append(idx)
+            bucket_fill += 1 # bucket_fill tracks how many samples are currently in bucket_embs
 
-    # process remaining bucket
-    if len(bucket):
-        tic = time.time()
-        save_bucket(samples, bucket, cache_dir, bucket_id)
-        t_saving += time.time() - tic
+            if bucket_fill == bucket_size:
+                save_bucket_tensor(samples, bucket_embs, bucket_indices, cache_dir, bucket_id)
+
+                bucket_id += 1
+                bucket_embs = None
+                bucket_indices.clear()
+                bucket_fill = 0
+
+        del audio_embs
+        torch.cuda.empty_cache()
+
+    # flush remainder
+    if bucket_fill > 0:
+        save_bucket_tensor(samples, bucket_embs[:bucket_fill], bucket_indices, cache_dir, bucket_id)
         bucket_id += 1
-    # while bucket:
-    #     tic = time.time()
-    #     save_bucket(samples, bucket[:bucket_size], cache_dir, bucket_id)
-    #     t_saving += time.time() - tic
-    #     bucket = bucket[bucket_size:]
-    #     bucket_id += 1
 
     logger.info(f"Saved {len(samples)} embeddings in {bucket_id} buckets dir={cache_dir}")
-    logger.info(f"Embedding time = {t_embedding:.2f}s, Saving time = {t_saving:.2f}s")
 
     return samples
+
+
+# def save_samples_in_buckets(audio_embedder, samples, cache_dir, batch_size, bucket_size, device, torch_dtype):
+#     # embed (batch_size) samples and save embeddings in files containing bucket_size samples
+#     batch_indices = []
+#     bucket = []
+#     bucket_id = 0
+#     t_embedding = 0.0
+#     t_saving = 0.0
+
+#     os.makedirs(cache_dir, exist_ok=True)
+
+#     for idx in tqdm(range(len(samples)), total=len(samples), desc="Embedding audio", unit=" sample"):
+
+#         batch_indices.append(idx)
+
+#         # process batch
+#         if len(batch_indices) == batch_size:
+#             tic = time.time()
+#             audio_embs_cpu = process_batch(audio_embedder, samples, batch_indices, device, torch_dtype)
+#             t_embedding += time.time() - tic
+
+#             # one by one copy audio_embs_cpu to bucket, clear audio_embs_cpu as soon as possible to free memory
+#             for i, idx in enumerate(batch_indices):
+#                 bucket.append((idx, audio_embs_cpu[i]))
+#                 del audio_embs_cpu[i]
+#                 gc.collect()
+
+#                 # and save bucket when it reaches bucket_size
+#                 if len(bucket) == bucket_size:
+#                     tic = time.time()
+#                     save_bucket(samples, bucket, cache_dir, bucket_id)
+#                     t_saving += time.time() - tic
+#                     bucket_id += 1
+#                     bucket.clear()
+#                     gc.collect()
+
+#             batch_indices = []
+
+#     # process remaining batch
+#     if batch_indices:
+#         tic = time.time()
+#         audio_embs_cpu = process_batch(audio_embedder, samples, batch_indices, device, torch_dtype)
+#         t_embedding += time.time() - tic
+#         for i, idx in enumerate(batch_indices):
+#             bucket.append((idx, audio_embs_cpu[i]))
+#             del audio_embs_cpu[i]
+#             gc.collect()
+
+#             # and save bucket when it reaches bucket_size
+#             if len(bucket) == bucket_size:
+#                 tic = time.time()
+#                 save_bucket(samples, bucket, cache_dir, bucket_id)
+#                 t_saving += time.time() - tic
+#                 bucket_id += 1
+#                 bucket.clear()
+#                 gc.collect()
+#         batch_indices = []
+
+#     # process remaining bucket
+#     if len(bucket):
+#         tic = time.time()
+#         save_bucket(samples, bucket, cache_dir, bucket_id)
+#         t_saving += time.time() - tic
+#         bucket_id += 1
+#         bucket.clear()
+#         gc.collect()
+
+#     logger.info(f"Saved {len(samples)} embeddings in {bucket_id} buckets dir={cache_dir}")
+#     logger.info(f"Embedding time = {t_embedding:.2f}s, Saving time = {t_saving:.2f}s")
+
+#     return samples
 
 
 def filter_and_group_samples(samples, tokenizer=None, max_seq_len=None):
@@ -195,8 +245,8 @@ if __name__ == "__main__":
     parser.add_argument("--tokenizer_path", type=str, default="/lustre/fsmisc/dataset/HuggingFace_Models/utter-project/EuroLLM-1.7B-Instruct")
     parser.add_argument("--device", type=str, default="cuda", help="Device for embeddings")
     parser.add_argument("--dtype", type=str, default="float16", help="Torch dtype for embeddings")
-    parser.add_argument("--batch_size", type=int, default=64, help="Number of samples to fed to embedder")
-    parser.add_argument("--bucket_size", type=int, default=64, help="Number of samples per saved bucket")
+    parser.add_argument("--batch_size", type=int, default=256, help="Number of samples to fed to embedder")
+    parser.add_argument("--bucket_size", type=int, default=256, help="Number of samples per saved bucket")
     parser.add_argument("--max_seq_len", type=int, default=1500 // 15, help="Max sequence length of the transcription. Usually the number of embeddings output by the projector (WHISPER_frames=1500 // PROJECTOR_conv_stride)")
     args = parser.parse_args()
 
