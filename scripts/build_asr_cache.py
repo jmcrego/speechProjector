@@ -244,7 +244,6 @@ if __name__ == "__main__":
     # combinations_sorted = sorted(combination2samples.keys(), key=lambda x: (len(combination2samples[x]), x[0], x[1]), reverse=False)
 
     for idx, (split, slang) in enumerate(split_slang):
-        # samples = combination2samples[(split, slang)]
         logger.info(f"Saving {idx}/{len(split_slang)} combination ({split}, {slang})")
 
         cache_dir = os.path.join(args.json_path + "_CACHE_ASR", f"{split}/{slang}")
