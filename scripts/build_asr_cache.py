@@ -251,7 +251,7 @@ if __name__ == "__main__":
         meta_path = os.path.join(cache_dir, "meta.json")
 
         if os.path.exists(meta_path):
-            logger.info(f"Cache directory {cache_dir} already contains meta.json/samples.jsonl, skipping embedding/saving")
+            logger.info(f"Cache directory {cache_dir} already contains meta.json, skipping embedding/saving")
             continue
 
         ### sorting is not really needed for stage1 ###
