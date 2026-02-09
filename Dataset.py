@@ -159,7 +159,7 @@ class Dataset(Dataset):
         n_empty = 0
         n_maxlen = 0
         self.samples = []
-        for idx, sample in enumerate(samples):
+        for idx, sample in enumerate(tqdm(samples, desc="Processing samples", unit=" samples")):
             if not sample['target']:
                 logger.warning(f"Skipping empty transcription->text field for sample idx={idx}")
                 n_empty += 1
