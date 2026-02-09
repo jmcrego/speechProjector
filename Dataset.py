@@ -44,6 +44,8 @@ class BatchedBucketSampler(BatchSampler):
         self.shuffle = shuffle
         self.size2n = defaultdict(int) # dict to keep track of number of batches with n samples (for logging)
 
+        if self.bucket_size is not None and batch_size % self.bucket_size != 0:
+            logger.warning(f"Batch size ({batch_size}) is not divisible by bucket size ({self.bucket_size}). This may lead to suboptimal batching with samples from different buckets (pt_paths) in the same batch, which can reduce training efficiency due to increased disk io. Consider setting batch_size to a multiple of bucket_size for optimal performance.")
         assert self.bucket_size % batch_size == 0, f"Bucket size ({self.bucket_size}) must be divisible by batch size ({batch_size}) to maximize batches containing samples from the same bucket (pt_path)."
 
         # Build indices of same bucket together (indices of samples with same pt_path)

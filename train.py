@@ -21,10 +21,6 @@ logger = logging.getLogger("train")
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
-import sys
-print(sys.flags.optimize)
-sys.exit(0)
-
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Train a speech ASR/STT decoder (audio-embedder ➔ Projector ➔ LLM).", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
