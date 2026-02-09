@@ -6,6 +6,7 @@ import torch
 import random
 import logging
 import numpy as np
+from tqdm import tqdm
 from pathlib import Path
 from collections import defaultdict
 from torch.utils.data import Dataset, BatchSampler
@@ -83,7 +84,7 @@ class Dataset(Dataset):
     """
     def __init__(
         self,
-        file_path: str,
+        jsonl_paths: [str],  #string or list of strings with expand characters like "/my/path/*/??/samples.jsonl"
         tokenizer,
         seq_len: int,
         seed: int = 42,
@@ -92,7 +93,7 @@ class Dataset(Dataset):
         Read audio embedding cache metadata.
 
         Args:
-            file_path (str): string like: "/my/path/*/??/samples.jsonl"
+            jsonl_paths ([str]): list of strings with expand characters like "/my/path/*/??/samples.jsonl"
             tokenizer: LLM tokenizer (used to convert text to target token ids)
             seq_len: int, maximum sequence length for target token ids (must match projector output length)
             seed: random seed for reproducibility (shuffling samples)
@@ -117,9 +118,12 @@ class Dataset(Dataset):
 
         ### read all files matching "/my/path/*/??/samples.jsonl" and concatenate samples into a single list
         samples = []
-        for f_jsonl in sorted(glob.glob(file_path)):
+        for f_jsonl in jsonl_paths:
+            if not f_jsonl.endswith("samples.json"):
+                logger.warning(f"File {f_jsonl} does not end with samples.json, skipping")
+                continue
             with open(f_jsonl, "r", encoding="utf-8") as f:
-                for line in f:
+                for line in tqdm(f, desc=f"Reading {f_jsonl}", unit=" lines"):
                     entry = json.loads(line)
                     sample = {
                         "pt_path": entry["pt_path"] if Path(entry["pt_path"]).is_absolute() else Path(f_jsonl).parent / entry["pt_path"],
@@ -183,10 +187,11 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Test Dataset loading and batching.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--config", type=str, required=True, help="Model config file")
-    parser.add_argument("--data_file", required=True, help="Dataset file")
+    parser.add_argument("--data_file", nargs="+", required=True, help="Dataset files (use expand characters like * if needed)")
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size for sampling")
     parser.add_argument("--seq_len", type=int, default=1500 // 15, help="Projector audio emnbedding sequence length")
     args = parser.parse_args()
+
 
     logging.basicConfig(level=logging.DEBUG, format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s", handlers=[logging.StreamHandler()])
 
@@ -203,8 +208,7 @@ if __name__ == "__main__":
 
     # Create dataset from file
     ds = Dataset(file_path=args.data_file, tokenizer=tokenizer, seq_len=args.seq_len)
-    kk
-    
+
     # Create sampler from datset
     sampler = BatchedBucketSampler(ds, batch_size=args.batch_size, shuffle=True)
 
