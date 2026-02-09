@@ -1,6 +1,7 @@
 # Dataset.py
 
 import json
+import glob
 import torch
 import random
 import logging
@@ -91,7 +92,7 @@ class Dataset(Dataset):
         Read audio embedding cache metadata.
 
         Args:
-            file_path (str): Path to meta.json
+            file_path (str): string like: "/my/path/*/??/samples.jsonl"
             tokenizer: LLM tokenizer (used to convert text to target token ids)
             seq_len: int, maximum sequence length for target token ids (must match projector output length)
             seed: random seed for reproducibility (shuffling samples)
@@ -106,32 +107,41 @@ class Dataset(Dataset):
         #random seed for reproducibility
         np.random.seed(seed)
 
-        if not Path(file_path).is_file():
-            raise FileNotFoundError(f"File not found: {file_path}")
+        tokenizer.padding_side = "right"
 
-        if Path(file_path).name != "meta.json":
-            raise ValueError(f"Only cached datasets with meta.json are supported: {file_path}")
-        
-        with open(file_path, "r", encoding="utf-8") as f:
-            self.meta = json.load(f)
+        # if not Path(file_path).is_file():
+        #     raise FileNotFoundError(f"File not found: {file_path}")
 
-        self.info = self.meta['info']
-        samples = self.meta['samples']
-        file_path_dir = Path(file_path).parent
+        # if Path(file_path).name != "meta.json":
+        #     raise ValueError(f"Only cached datasets with meta.json are supported: {file_path}")
+
+        ### read all files matching "/my/path/*/??/samples.jsonl" and concatenate samples into a single list
+        samples = []
+        for f_jsonl in sorted(glob.glob(file_path)):
+            with open(f_jsonl, "r", encoding="utf-8") as f:
+                for line in f:
+                    entry = json.loads(line)
+                    sample = {
+                        "pt_path": entry["pt_path"] if Path(entry["pt_path"]).is_absolute() else Path(f_jsonl).parent / entry["pt_path"],
+                        "offset": entry["offset"],
+                        "target": entry["text"],
+                    }
+                    samples.append(sample)
+            logger.info(f"Loaded {f_jsonl} → {len(samples)} samples")
+
+        # file_path_dir = Path(file_path).parent
 
         n_empty = 0
         n_maxlen = 0
         self.samples = []
         for idx, sample in enumerate(samples):
-            target = sample.get("transcription",{}).get("text", "")
-            if not target:
+            if not sample['target']:
                 logger.warning(f"Skipping empty transcription->text field for sample idx={idx}")
                 n_empty += 1
                 continue
 
-            tokenizer.padding_side = "right"
             toks = tokenizer(
-                target, 
+                sample['target'], 
                 return_tensors="pt", 
                 padding="max_length", 
                 max_length=seq_len,
@@ -152,7 +162,6 @@ class Dataset(Dataset):
                 n_maxlen += 1
                 continue
 
-            sample["pt_path"] = file_path_dir / sample["pt_path"]
             sample["target_ids"] = target_ids
 
             self.samples.append(sample)
