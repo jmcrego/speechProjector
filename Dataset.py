@@ -118,22 +118,19 @@ class Dataset(Dataset):
         for f_jsonl in jsonl_paths:
 
             # read meta.json file to get bucket_size (for logging)
-            info_path = Path(f_jsonl).parent / "meta.json"
-            if info_path.is_file():
-                with open(info_path, "r", encoding="utf-8") as f:
+            meta_path = Path(f_jsonl).parent / "meta.json"
+            if meta_path.is_file():
+                with open(meta_path, "r", encoding="utf-8") as f:
                     info = json.load(f)
                     bucket_size = info.get("bucket_size", None)
                     if bucket_size is None:
-                        logger.error(f"No bucket_size found in {info_path}")
+                        logger.error(f"No bucket_size found in {meta_path}")
                         exit(1)
                     if self.bucket_size is None:
                         self.bucket_size = bucket_size
                     elif bucket_size != self.bucket_size:
-                        logger.error(f"Bucket size mismatch for {info_path}: {bucket_size} vs {self.bucket_size}")
+                        logger.error(f"Bucket size mismatch for {meta_path}: {bucket_size} vs {self.bucket_size}")
                         sys.exit(1)
-            else:
-                logger.error(f"No meta.json found in {Path(f_jsonl).parent}")
-                sys.exit(1)
 
             if not Path(f_jsonl).is_file():
                 logger.warning(f"File not found: {f_jsonl}")
@@ -178,12 +175,12 @@ class Dataset(Dataset):
             target_ids = toks.input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
             if target_ids.size(0) == 0:
-                logger.warning(f"Skipping empty target_ids for sample idx={idx}")
+                #logger.warning(f"Skipping empty target_ids for sample idx={idx}")
                 n_empty += 1
                 continue
 
             if target_ids.size(0) > seq_len:
-                logger.warning(f"skipping too long target_ids for sample idx={idx}: {target_ids.size(0)} > {seq_len}")
+                #logger.warning(f"skipping too long target_ids for sample idx={idx}: {target_ids.size(0)} > {seq_len}")
                 n_maxlen += 1
                 continue
 
