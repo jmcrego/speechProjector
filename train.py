@@ -26,8 +26,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a speech ASR/STT decoder (audio-embedder ➔ Projector ➔ LLM).", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--config", type=str, required=True, help="Model config file")
     # dataset paths
-    parser.add_argument("--train", required=True, help="Training dataset file")
-    parser.add_argument("--eval", default=None, help="Evaluation dataset file")
+    parser.add_argument("--train", required=True, help="Training samples.jsonl files")
+    parser.add_argument("--eval", default=None, help="Evaluation samples.jsonl files")
     # opt pars
     parser.add_argument("--max_steps", type=int, default=100000, help="Maximum number of training steps (must be >0 for scheduler)")
     parser.add_argument("--max_epochs", type=int, default=1, help="Maximum number of training epochs (0 for no limit)")
@@ -93,13 +93,13 @@ if __name__ == "__main__":
     # -----------------------------
 
     train_dataset = Dataset(
-        file_path=args.train,
+        jsonl_paths=args.train,
         tokenizer=model.tokenizer,
         seq_len=model.projector.seq_len_out,
     )
 
     eval_dataset = Dataset(
-        file_path=args.eval,
+        jsonl_paths=args.eval,
         tokenizer=model.tokenizer,
         seq_len=model.projector.seq_len_out,
     ) if args.eval is not None else None

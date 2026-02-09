@@ -88,6 +88,7 @@ class Dataset(Dataset):
         jsonl_paths: [str],  #string or list of strings with expand characters like "/my/path/*/??/samples.jsonl"
         tokenizer,
         seq_len: int,
+        n_samples: int = 0, # if >0 select randomly n samples from the dataset (deterministic with seed)
         seed: int = 42,
     ):
         """
@@ -192,6 +193,10 @@ class Dataset(Dataset):
         logger.info(f"Skipped {n_maxlen} samples with target_ids longer than seq_len={seq_len}")
         logger.info(f"Final dataset size: {len(self.samples)} samples")
 
+        if n_samples > 0 and n_samples < len(self.samples):
+            self.samples = random.sample(self.samples, n_samples)
+            logger.info(f"Randomly selected {n_samples} samples from the dataset (seed={seed})")
+
     def __len__(self):
         return len(self.samples)
 
@@ -208,6 +213,7 @@ if __name__ == "__main__":
     parser.add_argument("--jsonl_paths", nargs="+", required=True, help="Dataset files (use expand characters like * if needed)")
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size for sampling")
     parser.add_argument("--seq_len", type=int, default=1500 // 15, help="Projector audio emnbedding sequence length")
+    parser.add_argument("--n_samples", type=int, default=0, help="If >0, randomly select this many samples from the dataset (deterministic with seed)")
     args = parser.parse_args()
 
 
@@ -225,7 +231,7 @@ if __name__ == "__main__":
         raise ValueError("""Tokenizer does not have a PAD token defined (use an LLM with defined pad_token).\nDuring pretraining, the model forces audio embeddings to match text embeddings. Due to length mismatch between audio frames and text tokens, PAD tokens are used to fill the remaining length of transcriptions. During inference, the LLM ignores PAD tokens without additional processing.""")
 
     # Create dataset from file
-    ds = Dataset(jsonl_paths=args.jsonl_paths, tokenizer=tokenizer, seq_len=args.seq_len)
+    ds = Dataset(jsonl_paths=args.jsonl_paths, tokenizer=tokenizer, seq_len=args.seq_len, n_samples=args.n_samples)
 
     # Create sampler from datset
     sampler = BatchedBucketSampler(ds, batch_size=args.batch_size, shuffle=True)
