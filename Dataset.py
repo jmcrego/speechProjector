@@ -110,18 +110,17 @@ class Dataset(Dataset):
 
         tokenizer.padding_side = "right"
 
-        # if not Path(file_path).is_file():
-        #     raise FileNotFoundError(f"File not found: {file_path}")
-
-        # if Path(file_path).name != "meta.json":
-        #     raise ValueError(f"Only cached datasets with meta.json are supported: {file_path}")
-
         ### read all files matching "/my/path/*/??/samples.jsonl" and concatenate samples into a single list
         samples = []
         for f_jsonl in jsonl_paths:
-            if not f_jsonl.endswith("samples.json"):
-                logger.warning(f"File {f_jsonl} does not end with samples.json, skipping")
+            if not Path(f_jsonl).is_file():
+                logger.warning(f"File not found: {f_jsonl}")
                 continue
+
+            if Path(f_jsonl).name != "samples.json":
+                logger.warning(f"File {f_jsonl} does not have expected name 'samples.jsonl', skipping")
+                continue
+
             with open(f_jsonl, "r", encoding="utf-8") as f:
                 for line in tqdm(f, desc=f"Reading {f_jsonl}", unit=" lines"):
                     entry = json.loads(line)
@@ -187,7 +186,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Test Dataset loading and batching.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--config", type=str, required=True, help="Model config file")
-    parser.add_argument("--data_file", nargs="+", required=True, help="Dataset files (use expand characters like * if needed)")
+    parser.add_argument("--jsonl_paths", nargs="+", required=True, help="Dataset files (use expand characters like * if needed)")
     parser.add_argument("--batch_size", type=int, default=4, help="Batch size for sampling")
     parser.add_argument("--seq_len", type=int, default=1500 // 15, help="Projector audio emnbedding sequence length")
     args = parser.parse_args()
@@ -207,7 +206,7 @@ if __name__ == "__main__":
         raise ValueError("""Tokenizer does not have a PAD token defined (use an LLM with defined pad_token).\nDuring pretraining, the model forces audio embeddings to match text embeddings. Due to length mismatch between audio frames and text tokens, PAD tokens are used to fill the remaining length of transcriptions. During inference, the LLM ignores PAD tokens without additional processing.""")
 
     # Create dataset from file
-    ds = Dataset(file_path=args.data_file, tokenizer=tokenizer, seq_len=args.seq_len)
+    ds = Dataset(jsonl_paths=args.jsonl_paths, tokenizer=tokenizer, seq_len=args.seq_len)
 
     # Create sampler from datset
     sampler = BatchedBucketSampler(ds, batch_size=args.batch_size, shuffle=True)
