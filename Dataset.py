@@ -160,6 +160,8 @@ class Dataset(Dataset):
                 n_empty += 1
                 continue
 
+            ### tokenize with padding to max_length=seq_len (projector output length) and truncation=False 
+            ### discard samples longer than seq_len
             toks = tokenizer(
                 sample['target'], 
                 return_tensors="pt", 
