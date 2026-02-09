@@ -117,8 +117,8 @@ class Dataset(Dataset):
         samples = []
         for f_jsonl in jsonl_paths:
 
-            # read info.json file to get bucket_size (for logging)
-            info_path = Path(f_jsonl).parent / "info.json"
+            # read meta.json file to get bucket_size (for logging)
+            info_path = Path(f_jsonl).parent / "meta.json"
             if info_path.is_file():
                 with open(info_path, "r", encoding="utf-8") as f:
                     info = json.load(f)
@@ -132,7 +132,7 @@ class Dataset(Dataset):
                         logger.error(f"Bucket size mismatch for {info_path}: {bucket_size} vs {self.bucket_size}")
                         sys.exit(1)
             else:
-                logger.error(f"No info.json found in {Path(f_jsonl).parent}")
+                logger.error(f"No meta.json found in {Path(f_jsonl).parent}")
                 sys.exit(1)
 
             if not Path(f_jsonl).is_file():
