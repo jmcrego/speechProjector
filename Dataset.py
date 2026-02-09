@@ -128,6 +128,7 @@ class Dataset(Dataset):
                         exit(1)
                     if self.bucket_size is None:
                         self.bucket_size = bucket_size
+                        logger.info(f"bucket_size set to {self.bucket_size}")
                     elif bucket_size != self.bucket_size:
                         logger.error(f"Bucket size mismatch for {meta_path}: {bucket_size} vs {self.bucket_size}")
                         sys.exit(1)
@@ -149,9 +150,6 @@ class Dataset(Dataset):
                         "target": entry["text"],
                     }
                     samples.append(sample)
-        logger.info(f"Loaded {len(samples)} samples")
-
-        # file_path_dir = Path(file_path).parent
 
         n_empty = 0
         n_maxlen = 0
