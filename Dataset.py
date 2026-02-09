@@ -39,12 +39,12 @@ class BatchedBucketSampler(BatchSampler):
         Once batches are built, they are shuffled if shuffle=True (default) or kept in order if shuffle=False.
         """
         self.dataset = dataset
-        self.bucket_size = dataset.info['bucket_size']
+        self.bucket_size = dataset.bucket_size
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.size2n = defaultdict(int) # dict to keep track of number of batches with n samples (for logging)
 
-        assert dataset.info['bucket_size'] % batch_size == 0, f"Bucket size ({dataset.info['bucket_size']}) must be divisible by batch size ({batch_size}) to maximize batches containing samples from the same bucket (pt_path)."
+        assert self.bucket_size % batch_size == 0, f"Bucket size ({self.bucket_size}) must be divisible by batch size ({batch_size}) to maximize batches containing samples from the same bucket (pt_path)."
 
         # Build indices of same bucket together (indices of samples with same pt_path)
         pt_path2idxs = defaultdict(list)
