@@ -152,7 +152,7 @@ class Dataset(Dataset):
                         "target": entry["text"],
                     }
                     samples.append(sample)
-            logger.info(f"Loaded {f_jsonl} → {len(samples)} samples")
+        logger.info(f"Loaded {len(samples)} samples")
 
         # file_path_dir = Path(file_path).parent
 
