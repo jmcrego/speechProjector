@@ -236,7 +236,7 @@ if __name__ == "__main__":
         for idx in batch:
             target_ids = ds[idx]["target_ids"]
             pt_path = ds[idx]["pt_path"]
-            duration = ds[idx]["duration"]
+            duration = ds[idx].get("duration", 0)
             # for each ids in target_ids build the tuple (ids, token_str)
             target = [(ids.item(), tokenizer.decode(ids)) for ids in target_ids]
             print(f"\tidx={idx}\n\tduration={duration:.2f}\n\ttarget={target}\n\tpt_path={pt_path}\n")
