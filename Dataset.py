@@ -142,6 +142,7 @@ class Dataset(Dataset):
                 logger.warning(f"File {f_jsonl} does not have expected name 'samples.jsonl', skipping")
                 continue
 
+            curr_samples = []
             with open(f_jsonl, "r", encoding="utf-8") as f:
                 for line in tqdm(f, desc=f"Reading {f_jsonl}", unit=" lines"):
                     entry = json.loads(line)
@@ -150,7 +151,11 @@ class Dataset(Dataset):
                         "offset": entry["offset"],
                         "target": entry["text"],
                     }
-                    samples.append(sample)
+                    curr_samples.append(sample)
+                if n_samples > 0 and n_samples < len(curr_samples):
+                    curr_samples = random.sample(curr_samples, n_samples)
+            samples.extend(curr_samples)
+
 
         n_empty = 0
         n_maxlen = 0
