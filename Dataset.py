@@ -117,7 +117,7 @@ class Dataset(Dataset):
                 logger.warning(f"File not found: {f_jsonl}")
                 continue
 
-            if Path(f_jsonl).name != "samples.json":
+            if Path(f_jsonl).name != "samples.jsonl":
                 logger.warning(f"File {f_jsonl} does not have expected name 'samples.jsonl', skipping")
                 continue
 
