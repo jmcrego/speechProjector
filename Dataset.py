@@ -1,5 +1,6 @@
 # Dataset.py
 
+import sys
 import json
 import glob
 import torch
@@ -110,9 +111,30 @@ class Dataset(Dataset):
 
         tokenizer.padding_side = "right"
 
+        self.bucket_size = None
+
         ### read all files matching "/my/path/*/??/samples.jsonl" and concatenate samples into a single list
         samples = []
         for f_jsonl in jsonl_paths:
+
+            # read info.json file to get bucket_size (for logging)
+            info_path = Path(f_jsonl).parent / "info.json"
+            if info_path.is_file():
+                with open(info_path, "r", encoding="utf-8") as f:
+                    info = json.load(f)
+                    bucket_size = info.get("bucket_size", None)
+                    if bucket_size is None:
+                        logger.error(f"No bucket_size found in {info_path}")
+                        exit(1)
+                    if self.bucket_size is None:
+                        self.bucket_size = bucket_size
+                    elif bucket_size != self.bucket_size:
+                        logger.error(f"Bucket size mismatch for {info_path}: {bucket_size} vs {self.bucket_size}")
+                        sys.exit(1)
+            else:
+                logger.error(f"No info.json found in {Path(f_jsonl).parent}")
+                sys.exit(1)
+
             if not Path(f_jsonl).is_file():
                 logger.warning(f"File not found: {f_jsonl}")
                 continue
