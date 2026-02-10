@@ -44,9 +44,9 @@ class BatchedBucketSampler(BatchSampler):
         self.shuffle = shuffle
         self.size2n = defaultdict(int) # dict to keep track of number of batches with n samples (for logging)
 
-        if self.bucket_size is not None and batch_size % self.bucket_size != 0:
-            logger.warning(f"Batch size ({batch_size}) is not divisible by bucket size ({self.bucket_size}). This may lead to suboptimal batching with samples from different buckets (pt_paths) in the same batch, which can reduce training efficiency due to increased disk io. Consider setting batch_size to a multiple of bucket_size for optimal performance.")
-        assert self.bucket_size % batch_size == 0, f"Bucket size ({self.bucket_size}) must be divisible by batch size ({batch_size}) to maximize batches containing samples from the same bucket (pt_path)."
+        if self.bucket_size is not None and self.bucket_size % self.batch_size != 0:
+            logger.warning(f"Bucket size ({self.bucket_size}) is not divisible by batch size ({batch_size}). This may lead to suboptimal batching. Consider setting batch_size to a multiple of bucket_size for optimal performance.")
+            sys.exit(1)
 
         # Build indices of same bucket together (indices of samples with same pt_path)
         pt_path2idxs = defaultdict(list)
@@ -129,10 +129,12 @@ class Dataset(Dataset):
                     if bucket_size is None:
                         logger.error(f"No bucket_size found in {meta_path}")
                         exit(1)
+
                     if self.bucket_size is None:
                         self.bucket_size = bucket_size
                         logger.info(f"bucket_size set to {self.bucket_size}")
-                    elif bucket_size != self.bucket_size:
+
+                    if bucket_size != self.bucket_size:
                         logger.error(f"Bucket size mismatch for {meta_path}: {bucket_size} vs {self.bucket_size}")
                         sys.exit(1)
 
