@@ -198,7 +198,7 @@ class Trainer:
                     accum['text_norm'] += outputs["text_norm"].item()
                     accum['n_pads'] += (target_ids == self.tokenizer.pad_token_id).sum().item()
                     accum['n_samples'] += target_ids.size(0)
-                    accum['n_batches'] += 1
+                    accum['n_batchs'] += 1
     
                 # Backward pass
                 scaler.scale(loss).backward()
