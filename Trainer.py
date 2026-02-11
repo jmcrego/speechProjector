@@ -326,9 +326,9 @@ class Trainer:
         log_str += f"step={self.step:0>6d}/{self.max_steps} | "
         log_str += f"epoch={self.sample/len(self.train_dataset):.3f}/{self.max_epochs} | "
         log_str += f"loss={loss:.3f} | "
-        log_str += f"𝐿_cos={loss_cos:.3f} | " if loss_cos is not None else ""
-        log_str += f"𝐿_mse_txt={loss_mse_txt:.3f} | " if loss_mse_txt is not None else ""
-        log_str += f"𝐿_mse_pad={loss_mse_pad:.3f} | " if loss_mse_pad is not None else ""
+        log_str += f"𝓛_cos={loss_cos:.3f} | " if loss_cos is not None else ""
+        log_str += f"𝓛_mse_txt={loss_mse_txt:.3f} | " if loss_mse_txt is not None else ""
+        log_str += f"𝓛_mse_pad={loss_mse_pad:.3f} | " if loss_mse_pad is not None else ""
         log_str += f"lr_proj={self.optimizer.param_groups[0]['lr']:.3e} | "
 
         if proj_grad_norm is not None:
