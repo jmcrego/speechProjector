@@ -10,7 +10,7 @@ import random
 import logging
 import numpy as np
 from datetime import datetime
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 import torch.nn as nn
 from torch.optim import AdamW
@@ -159,12 +159,15 @@ class Trainer:
         self.model.train()
         optimizer = self.optimizer
         optimizer.zero_grad()
-        accum_loss = 0.0
-        accum_loss_cos = 0.0
-        accum_loss_mse_txt = 0.0
-        accum_loss_mse_pad = 0.0
-        accum_audio_norm = 0.0
-        accum_text_norm = 0.0
+
+        accum = defaultdict(float)
+        # accum_loss = 0.0
+        # accum_loss_cos = 0.0
+        # accum_loss_mse_txt = 0.0
+        # accum_loss_mse_pad = 0.0
+        # accum_audio_norm = 0.0
+        # accum_text_norm = 0.0
+
         total_pads = 0
         total_samples = 0
 
@@ -192,13 +195,13 @@ class Trainer:
                     raw_loss = outputs["loss"]
                     loss = raw_loss / self.accum_steps                    
 
-                    accum_loss += raw_loss.detach()
-                    accum_loss_cos += outputs["loss_cos"].detach()
-                    accum_loss_mse_txt += outputs["loss_mse_txt"].detach()
-                    accum_loss_mse_pad += outputs["loss_mse_pad"].detach()
+                    accum['loss'] += raw_loss.item()
+                    accum['loss_cos'] += outputs["loss_cos"].item()
+                    accum['loss_mse_txt'] += outputs["loss_mse_txt"].item()
+                    accum['loss_mse_pad'] += outputs["loss_mse_pad"].item()
                     with torch.no_grad():
-                        accum_audio_norm += outputs["audio_norm"].detach()
-                        accum_text_norm += outputs["text_norm"].detach()
+                        accum['audio_norm'] += outputs["audio_norm"].item()
+                        accum['text_norm'] += outputs["text_norm"].item()
 
                 # Backward pass
                 scaler.scale(loss).backward()
@@ -230,16 +233,13 @@ class Trainer:
                     # Logging (log_every must be multiple of accum_steps)
                     self.step += 1 
                     if self.step % self.log_every == 0:
-                        avg_loss = accum_loss / self.accum_steps
-                        avg_audio_norm = accum_audio_norm / self.accum_steps
-                        avg_text_norm = accum_text_norm / self.accum_steps
                         self.log_fn( #training log
-                            avg_loss.item(),
-                            audio_norm=avg_audio_norm.item(),
-                            text_norm=avg_text_norm.item(),
-                            loss_cos=accum_loss_cos.item() / self.accum_steps,
-                            loss_mse_txt=accum_loss_mse_txt.item() / self.accum_steps,
-                            loss_mse_pad=accum_loss_mse_pad.item() / self.accum_steps,
+                            accum['loss'] / self.accum_steps,
+                            audio_norm=accum['audio_norm'] / self.accum_steps,
+                            text_norm=accum['text_norm'] / self.accum_steps,
+                            loss_cos=accum['loss_cos'] / self.accum_steps,
+                            loss_mse_txt=accum['loss_mse_txt'] / self.accum_steps,
+                            loss_mse_pad=accum['loss_mse_pad'] / self.accum_steps,
                             scale=scale_val,
                             proj_grad_norm=proj_grad_norm.item(),
                             total_pads=total_pads,
@@ -248,30 +248,32 @@ class Trainer:
                         self.json_logger.log(
                             type="train", 
                             step=self.step, 
-                            loss=avg_loss.item(), 
-                            audio_norm=avg_audio_norm.item(), 
-                            text_norm=avg_text_norm.item(),
-                            loss_cos=accum_loss_cos.item() / self.accum_steps,
-                            loss_mse_txt=accum_loss_mse_txt.item() / self.accum_steps,
-                            loss_mse_pad=accum_loss_mse_pad.item() / self.accum_steps,
+                            loss=accum['loss'] / self.accum_steps,
+                            audio_norm=accum['audio_norm'] / self.accum_steps,
+                            text_norm=accum['text_norm'] / self.accum_steps,
+                            loss_cos=accum['loss_cos'] / self.accum_steps,
+                            loss_mse_txt=accum['loss_mse_txt'] / self.accum_steps,
+                            loss_mse_pad=accum['loss_mse_pad'] / self.accum_steps,
                             scale=scale_val,
                             proj_grad_norm=proj_grad_norm.item(), 
-                            total_pads=total_pads, total_samples=total_samples,
+                            total_pads=total_pads, 
+                            total_samples=total_samples,
                         )
 
                         total_pads = 0
                         total_samples = 0
 
-                    accum_loss = 0.0
-                    accum_loss_cos = 0.0
-                    accum_loss_mse_txt = 0.0
-                    accum_loss_mse_pad = 0.0
-                    accum_audio_norm = 0.0
-                    accum_text_norm = 0.0
+                    accum['loss'] = 0.0
+                    accum['loss_cos'] = 0.0
+                    accum['loss_mse_txt'] = 0.0
+                    accum['loss_mse_pad'] = 0.0
+                    accum['audio_norm'] = 0.0
+                    accum['text_norm'] = 0.0
 
                     # Evaluation + checkpoint
-                    if self.eval_loader is not None and self.step % self.eval_every == 0:
-                        self.evaluate()
+                    if self.step % self.eval_every == 0:
+                        if self.eval_loader is not None and len(self.eval_loader) > 0:
+                            self.evaluate()
                         self.save_checkpoint(self.step)
 
                     if self.max_steps and self.step >= self.max_steps:
@@ -304,15 +306,9 @@ class Trainer:
         """
         self.model.eval()
 
-        accum_loss = 0.0
-        accum_loss_cos = 0.0
-        accum_loss_mse_txt = 0.0
-        accum_loss_mse_pad = 0.0
-        accum_audio_norm = 0.0
-        accum_text_norm = 0.0
+        accum = defaultdict(float)
 
-        n_batches = 0        
-        for batch in self.eval_loader:
+        for n, batch in enumerate(self.eval_loader, start=1):
             pt_paths = batch["pt_paths"] # list of paths to .pt files containing audio embeddings (tensor of shape [T', D])
             offsets = batch["offsets"] # list of (start, end) frame offsets for each sample in the batch (for slicing audio embeddings)
             target_ids = batch["target_ids"] # [B, L_max] torch.long token ids for ASR transcription (padded to seq_len)
@@ -324,45 +320,37 @@ class Trainer:
                 # Pass input_embeds instead of input_ids to the model, along with target_ids and attention_mask for loss computation
                 outputs = self.model(target_ids, pt_paths, offsets) 
 
-            loss = outputs["loss"].item()
-            # total_loss += loss
+            accum['loss'] += outputs["loss"].item()
+            accum['loss_cos'] += outputs["loss_cos"].item()
+            accum['loss_mse_txt'] += outputs["loss_mse_txt"].item()
+            accum['loss_mse_pad'] += outputs["loss_mse_pad"].item()
+            accum['audio_norm'] += outputs["audio_norm"].item()
+            accum['text_norm'] += outputs["text_norm"].item()
 
-            accum_loss += outputs["loss"].detach()
-            accum_loss_cos += outputs["loss_cos"].detach()
-            accum_loss_mse_txt += outputs["loss_mse_txt"].detach()
-            accum_loss_mse_pad += outputs["loss_mse_pad"].detach()
-            accum_audio_norm += outputs["audio_norm"].detach()
-            accum_text_norm += outputs["text_norm"].detach()
-
-            n_batches += 1
 
         # valid log
         self.log_fn( #training log
-            accum_loss.item() / max(1, n_batches),
-            audio_norm=accum_audio_norm / max(1, n_batches),
-            text_norm=accum_text_norm / max(1, n_batches),
-            loss_cos=accum_loss_cos.item() / max(1, n_batches),
-            loss_mse_txt=accum_loss_mse_txt.item() / max(1, n_batches),
-            loss_mse_pad=accum_loss_mse_pad.item() / max(1, n_batches),
+            accum['loss'] / max(1, n),
+            audio_norm=accum['audio_norm'] / n,
+            text_norm=accum['text_norm'] / n,
+            loss_cos=accum['loss_cos'] / n,
+            loss_mse_txt=accum['loss_mse_txt'] / n,
+            loss_mse_pad=accum['loss_mse_pad'] / n,
             is_eval=True,
         )
         self.json_logger.log(
             type="train", 
             step=self.step, 
-            loss=accum_loss.item() / max(1, n_batches), 
-            audio_norm=accum_audio_norm.item() / max(1, n_batches), 
-            text_norm=accum_text_norm.item() / max(1, n_batches),
-            loss_cos=accum_loss_cos.item() / max(1, n_batches),
-            loss_mse_txt=accum_loss_mse_txt.item() / max(1, n_batches),
-            loss_mse_pad=accum_loss_mse_pad.item() / max(1, n_batches),
+            loss=accum['loss'] / n, 
+            audio_norm=accum['audio_norm'] / n, 
+            text_norm=accum['text_norm'] / n,
+            loss_cos=accum['loss_cos'] / n,
+            loss_mse_txt=accum['loss_mse_txt'] / n,
+            loss_mse_pad=accum['loss_mse_pad'] / n,
         )
 
-
-        self.json_logger.log(type="eval", step=self.step, loss=accum_loss.item() / max(1, n_batches))                        
-
         self.model.train()
-        return accum_loss.item() / max(1, n_batches)
-
+        return accum['loss'] / n
     # -----------------------
     # Logging 
     # -----------------------
