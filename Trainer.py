@@ -346,7 +346,7 @@ class Trainer:
         logger.info(log_str)
 
         self.json_logger.log(
-            type="eval" if is_eval else "train", 
+            split="eval" if is_eval else "train", 
             step=self.step, 
             loss=loss, 
             audio_norm=audio_norm, 
