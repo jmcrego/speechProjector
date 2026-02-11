@@ -161,12 +161,6 @@ class Trainer:
         optimizer.zero_grad()
 
         accum = defaultdict(float)
-        # accum_loss = 0.0
-        # accum_loss_cos = 0.0
-        # accum_loss_mse_txt = 0.0
-        # accum_loss_mse_pad = 0.0
-        # accum_audio_norm = 0.0
-        # accum_text_norm = 0.0
 
         total_pads = 0
         total_samples = 0
