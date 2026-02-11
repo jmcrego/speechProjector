@@ -342,24 +342,25 @@ class Trainer:
         if total_samples:
             log_str += f"pads_per_sample={total_pads/total_samples:.2f} | "
         
-        log_str += f"elapsed={h:02d}h:{m:02d}m:{s:02d}s"
+        log_str += f"elapsed={h:02d}:{m:02d}:{s:02d}"
         logger.info(log_str)
 
-        self.json_logger.log(
-            split="eval" if is_eval else "train", 
-            step=self.step, 
-            loss=loss, 
-            audio_norm=audio_norm, 
-            text_norm=text_norm,
-            loss_cos=loss_cos,
-            loss_mse_txt=loss_mse_txt,
-            loss_mse_pad=loss_mse_pad,
-            proj_grad_norm=proj_grad_norm,
-            scale=scale_val,
-            lr_proj=self.optimizer.param_groups[0]['lr'],
-            pads_per_sample=(total_pads/total_samples) if total_samples else None,
-            elapsed=f"{h:02d}:{m:02d}:{s:02d}",
-        )
+        if self.json_logger is not None:
+            self.json_logger.log(
+                split="eval" if is_eval else "train", 
+                step=self.step, 
+                loss=loss, 
+                audio_norm=audio_norm, 
+                text_norm=text_norm,
+                loss_cos=loss_cos,
+                loss_mse_txt=loss_mse_txt,
+                loss_mse_pad=loss_mse_pad,
+                proj_grad_norm=proj_grad_norm,
+                scale=scale_val,
+                lr_proj=self.optimizer.param_groups[0]['lr'],
+                pads_per_sample=(total_pads/total_samples) if total_samples else None,
+                elapsed=f"{h:02d}:{m:02d}:{s:02d}",
+            )
 
 
 
