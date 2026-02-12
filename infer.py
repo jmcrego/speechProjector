@@ -109,7 +109,7 @@ if __name__ == "__main__":
             repetition_penalty = args.repetition_penalty, #good for ASR/STT, but bad for QA
         )
 
-        logger.info(f"AUDIO: {args.audio}")
+        logger.info(f"AUDIO: {args.audio_path}")
         def replace_CR(text):
             return text.replace("\n", "↵") if text is not None else None
         logger.info(f"PREDIC: {replace_CR(output[0])}")
