@@ -7,6 +7,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
 import torch.nn.functional as F
 
 from Projector import Projector
+from Embedder import Embedder
 
 logger = logging.getLogger("AudioLLM")
 
@@ -34,21 +35,45 @@ class AudioLLM(torch.nn.Module):
             raise ValueError("""Tokenizer does not have a PAD token defined (use an LLM with defined pad_token).\nDuring pretraining, the model forces audio embeddings to match text embeddings. Due to length mismatch between audio frames and text tokens, PAD tokens are used to fill the remaining length of transcriptions. During inference, the LLM ignores PAD tokens without additional processing.""")
         logger.info(f"pad_token = {self.tokenizer.pad_token} {self.tokenizer.pad_token_id}")
 
-        ### load LLM Embedder ###
-        self.llm_embedder = AutoModelForCausalLM.from_pretrained(llm_path, low_cpu_mem_usage=True).get_input_embeddings()
+        if is_infer:
+            ### load LLM ###
+            self.llm_embedder = None # not needed during inference, save memory by not loading
+            self.llm = AutoModelForCausalLM.from_pretrained(llm_path, low_cpu_mem_usage=True)
+            self.llm.to(device=device, dtype=dtype) 
+            self.llm.eval()
+            for p in self.llm.parameters():
+                p.requires_grad = False
+            logger.info(f"Loaded LLM from {llm_path} and set to eval mode with gradients disabled")
+
+            ### load Audio Embedder ###
+            self.embedder = Embedder(config['audio']) 
+            self.embedder.to(device=device, dtype=dtype) 
+            self.embedder.eval() 
+            for p in self.embedder.parameters(): 
+                p.requires_grad = False 
+            logger.info(f"Loaded Audio Embedder from {config['audio']['path']} and set to eval mode with gradients disabled")
+
+        else:
+            ### load LLM Embedder ###
+            self.llm = None # not needed during training, save memory by not loading full LLM
+            self.embedder = None # not needed during training, save memory by not loading full embedder
+            self.llm_embedder = AutoModelForCausalLM.from_pretrained(llm_path, low_cpu_mem_usage=True).get_input_embeddings()
+            self.llm_embedder.to(device=device, dtype=dtype)      #float16/bfloat16 is for memory efficiency
+            self.llm_embedder.eval()
+            for p in self.llm_embedder.parameters():
+                p.requires_grad = False
+            logger.info(f"Loaded LLM from {llm_path} and set to eval mode with gradients disabled")
+
         ### load Projector ###
         self.projector = Projector(config['projector'], audio_embedding_dim=self.audio_embedding_dim, llm_embedding_dim=self.llm_embedding_dim)
-
-        logger.info(f"Moving models to device={device}, dtype={dtype} and freezing LLM embedder...")
         self.projector.to(device=device, dtype=dtype)      #use float32 to ensure stability during early training of projector
         self.projector.unfreeze()
-        self.llm_embedder.to(device=device, dtype=dtype)      #float16/bfloat16 is for memory efficiency
-        self.llm_embedder.eval()
-        for p in self.llm_embedder.parameters():
-            p.requires_grad = False
 
         logger.info(f"Projector: {next(self.projector.parameters()).dtype} on {next(self.projector.parameters()).device}")
-        logger.info(f"LLM Embedder: {next(self.llm_embedder.parameters()).dtype} on {next(self.llm_embedder.parameters()).device}")
+        if is_infer:
+            logger.info(f"LLM: {next(self.llm.parameters()).dtype} on {next(self.llm.parameters()).device}")
+        else:
+            logger.info(f"LLM Embedder: {next(self.llm_embedder.parameters()).dtype} on {next(self.llm_embedder.parameters()).device}")
 
         self.alpha = config['optim']['alpha']
         self.gamma = config['optim']['gamma']
@@ -122,7 +147,135 @@ class AudioLLM(torch.nn.Module):
             "text_norm": text_norm,
         }
 
+    def generate(
+        self, 
+        audio_paths, 
+        prompt, 
+        max_new_tokens=256, 
+        temperature=0.7, 
+        top_p=0.95,
+        no_repeat_ngram_size = 0, #dangerous for ASR/STT, speech allow repetitions
+        repetition_penalty = 1.1, #good for ASR/STT, but bad for QA
+    ):
+        """
+        Inference method: generates text given audio paths and prompt
+        Args:
+            audio_paths (List[str]): list of audio file paths
+            prompt (str): prompt text
+            max_new_tokens (int): maximum number of new tokens to generate
+            temperature (float): sampling temperature
+            top_p (float): top-p sampling parameter
+            no_repeat_ngram_size (int): no repeat ngram size
+            repetition_penalty (float): repetition penalty
 
+        Returns:
+            generated_texts (List[str]): list of generated texts
+        """
+        prompt_ids = self.tokenizer(prompt, return_tensors="pt").input_ids.to(self.projector.linear.weight.device) # move to same device as projector for generation
+        formatted_batch = self.format_batch(audio_paths, prompt_ids)
+
+        outputs = self.llm.generate(
+            inputs_embeds=formatted_batch["inputs_embeds"],
+            attention_mask=formatted_batch["attention_mask"],
+            max_new_tokens=max_new_tokens,
+            do_sample=(temperature > 0),
+            temperature=temperature if temperature > 0 else None,
+            top_p=top_p if temperature > 0 else None,
+            no_repeat_ngram_size = no_repeat_ngram_size, 
+            repetition_penalty = repetition_penalty,
+            pad_token_id = self.tokenizer.pad_token_id,
+            eos_token_id = self.tokenizer.eos_token_id,
+            use_cache=True,
+            return_dict_in_generate=True,
+            output_scores=True,
+        )
+
+        return self.tokenizer.batch_decode(outputs.sequences, skip_special_tokens=False)
+
+
+    def format_batch(self, audio_paths, prompt_ids):
+        """
+        Formats a batch by combining prompt, audio, and (optionally) target embeddings.
+
+        Args:
+            audio_paths: list of audio file paths
+            prompt_ids: [B, T_prompt] input token IDs
+
+        Returns:
+            dict with:
+                inputs_embeds: [B, L_max, D] final embeddings
+                attention_mask: [B, L_max] attention mask
+        """
+        device = self.llm.device
+        llm_dtype = next(self.llm.parameters()).dtype
+        B = prompt_ids.size(0)
+
+        # 1) Embed audio
+        with torch.no_grad():
+            audio_embs, _ = self.audio_embedder(audio_paths)  # [B, T_audio, D_audio]
+
+        audio_embs = audio_embs.to(device)
+
+        # 2) Project audio embeddings
+        proj_embs, proj_mask = self.projector(audio_embs)      # [B, S_max, D_llm], [B, S_max]
+        proj_mask = proj_mask.bool()
+        B, S_max, D = proj_embs.shape
+        audio_lens = proj_mask.sum(dim=1)                      # [B]
+
+        # 3) Embed prompt
+        prompt_ids = prompt_ids.to(device)
+        prompt_embs = self.llm.model.get_input_embeddings()(prompt_ids)  # [B, T_prompt, D]
+        prompt_mask = prompt_ids != self.llm.tokenizer.pad_token_id
+        prompt_lens = prompt_mask.sum(dim=1)                   # [B]
+        T_prompt = prompt_ids.size(1)
+
+        # 4) Locate <extra_id_0> in prompt
+        audio_token_mask = prompt_ids == self.audio_token_id
+        assert (audio_token_mask.sum(dim=1) == 1).all(), "Each sample must have exactly one <extra_id_0>"
+        audio_pos = audio_token_mask.float().argmax(dim=1)  # [B]
+
+        # 5) Allocate final batch
+        total_lens = (prompt_lens - 1) + audio_lens
+
+        max_len = total_lens.max().item()
+        inputs_embeds = torch.zeros((B, max_len, D), device=device, dtype=llm_dtype)
+        attention_mask = torch.zeros((B, max_len), device=device, dtype=torch.long)
+
+        # 6) Insert prompt tokens before <extra_id_0>
+        range_T = torch.arange(T_prompt, device=device).unsqueeze(0)  # [1, T_prompt]
+        before_mask = range_T < audio_pos.unsqueeze(1)                # [B, T_prompt]
+        b_idx, t_idx = torch.nonzero(before_mask, as_tuple=True)
+        inputs_embeds[b_idx, t_idx] = prompt_embs[b_idx, t_idx]
+        attention_mask[b_idx, t_idx] = 1
+
+        # 7) Insert audio embeddings
+        range_S = torch.arange(S_max, device=device).unsqueeze(0)     # [1, S_max]
+        valid_audio = range_S < audio_lens.unsqueeze(1)               # [B, S_max]
+        audio_dest = audio_pos.unsqueeze(1) + range_S                 # [B, S_max]
+        b_a, s_a = torch.nonzero(valid_audio, as_tuple=True)
+        inputs_embeds[b_a, audio_dest[b_a, s_a]] = proj_embs[b_a, s_a]
+        attention_mask[b_a, audio_dest[b_a, s_a]] = 1
+
+        # 8) Insert prompt tokens after <extra_id_0>
+        after_mask = range_T > audio_pos.unsqueeze(1)                 # [B, T_prompt]
+        b_p, t_p = torch.nonzero(after_mask, as_tuple=True)
+        after_offset = audio_lens[b_p] + audio_pos[b_p]
+        dest_pos = after_offset + (t_p - (audio_pos[b_p] + 1))
+        inputs_embeds[b_p, dest_pos] = prompt_embs[b_p, t_p]
+        attention_mask[b_p, dest_pos] = 1
+
+        attn_sum = attention_mask.sum(dim=1)
+        if not torch.all(attn_sum == total_lens):
+            raise RuntimeError(f"Attention mismatch:\nattn_sum={attn_sum}\ntotal_lens={total_lens}")
+
+        output = {
+            "inputs_embeds": inputs_embeds,
+            "attention_mask": attention_mask,
+        }
+
+        return output
+        
+    
     def read_cache_embs(self, pt_paths, offsets):
         """
         Reads the batch embeddings cached in disk as indicated by pt_paths and offsets

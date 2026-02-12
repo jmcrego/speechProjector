@@ -29,9 +29,11 @@ if __name__ == "__main__":
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument("--config", type=str, required=True, help="Model config file")
-    parser.add_argument("--test", nargs="+", required=True, help="Testing dataset file/s")
-    parser.add_argument("--batch_size", type=int, default=1, help="Batch size")
-    parser.add_argument("--max_seq_len", type=int, default=1024, help="Maximum sequence length")
+    parser.add_argument("--audio_path", type=str, required=True, help="Audio file/s")
+    parser.add_argument("--slang", type=str, required=True, help="Audio language")
+    parser.add_argument("--tlang", type=str, required=True, help="Target language")
+    # parser.add_argument("--batch_size", type=int, default=1, help="Batch size")
+    # parser.add_argument("--max_seq_len", type=int, default=1024, help="Maximum sequence length")
     # Inference params
     parser.add_argument("--max_new_tokens", type=int, default=256, help="Maximum number of output tokens to generate")
     parser.add_argument("--temperature", type=float, default=0.7, help="Sampling temperature for generation")
@@ -41,6 +43,15 @@ if __name__ == "__main__":
     # Task params
     parser.add_argument("--debug", action="store_true", help="Debug mode with more logging")
     args = parser.parse_args()
+
+    prompt = (f'<|im_start|>system'
+        '<|im_end|>'
+        '<|im_start|>user'
+        f'Translate the following {args.slang} speech utterance into {args.tlang}:'
+        f'{args.slang}: <extra_id_0>'
+        f'{args.tlang}: <|im_end|>'
+        '<|im_start|>assistant'
+    )
 
     # Create output directory if needed
     # Path(args.output_dir).mkdir(parents=True, exist_ok=True)
@@ -74,7 +85,6 @@ if __name__ == "__main__":
     device, dtype = get_device_dtype()
     logger.info(f"device: {device}, dtype: {dtype}")
 
-
     # --------------------------------------------------
     # Load models
     # --------------------------------------------------
@@ -82,31 +92,11 @@ if __name__ == "__main__":
     model = AudioLLM(
         config=config,
         device=device,
-        dtype=dtype 
+        dtype=dtype,
+        is_infer=True, 
     )
     model.eval()
     logger.info(f"Loading model took {time.time() - t:.2f} sec")
-
-    # -------------------------------------------------- 
-    # Load dataset
-    # --------------------------------------------------
-    test_dataset = Dataset(
-        jsonl_paths=args.test,
-        tokenizer=model.tokenizer,
-        seq_len=model.projector.seq_len_out,
-    )
-    test_sampler = BatchedBucketSampler(test_dataset, batch_size=args.batch_size, shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_sampler=test_sampler, collate_fn=collate_fn)
-    logger.info(f"Initialized Sampler and DataLoader for test with batch_size={args.batch_size} with {len(test_dataset)} samples")
-
-    test_sampler = BatchedLengthSampler(test_dataset, batch_size=args.batch_size)
-    test_loader = DataLoader(
-        test_dataset,
-        batch_sampler=test_sampler,
-        collate_fn=collate_fn
-    )
-    
-    logger.info(f"Initialized Sampler and DataLoader for test with batch_size={args.batch_size} with {len(test_dataset)} samples")
 
     # --------------------------------------------------
     # Inference
@@ -114,65 +104,19 @@ if __name__ == "__main__":
     t = time.time()
 
     with torch.no_grad():
-        for n_batch, batch in enumerate(test_loader):
-            # ----------------------------
-            # Move tensors to device
-            # ----------------------------
-            batch = {
-                k: v.to(device) if isinstance(v, torch.Tensor) else v
-                for k, v in batch.items()
-            }
+        output = model.generate(
+            audio_paths=[args.audio_path], 
+            prompt=prompt,
+            max_new_tokens=args.max_new_tokens,
+            temperature=args.temperature,
+            top_p=args.top_p,
+            no_repeat_ngram_size = args.no_repeat_ngram_size, #dangerous for ASR/STT, speech allow repetitions
+            repetition_penalty = args.repetition_penalty, #good for ASR/STT, but bad for QA
+        )
 
-            audio_paths = batch["audio_paths"]
-
-            # ----------------------------
-            # Embed audio
-            # ----------------------------
-            with torch.amp.autocast(
-                device_type="cuda",
-                dtype=dtype,
-                enabled=(device.type == "cuda"),
-            ):
-                outputs = model(**batch)
-
-            prompt_ids = batch["prompt_ids"]
-            target_ids = batch["target_ids"]
-
-            # Decode prompt text (for logging only)
-            prompt_texts = model.tokenizer.batch_decode(
-                batch["prompt_ids"],
-                skip_special_tokens=False,
-            )
-
-            # Decode targets (ground truth)
-            target_texts = model.tokenizer.batch_decode(
-                batch["target_ids"],
-                skip_special_tokens=False,
-            )
-
-            # ----------------------------
-            # Run generation
-            # ----------------------------
-            genera_texts = model.generate(
-                audio_paths=audio_paths,
-                prompt_ids=prompt_ids,
-                max_new_tokens=args.max_new_tokens,
-                temperature=args.temperature,
-                top_p=args.top_p,
-                no_repeat_ngram_size = args.no_repeat_ngram_size, #dangerous for ASR/STT, speech allow repetitions
-                repetition_penalty = args.repetition_penalty, #good for ASR/STT, but bad for QA
-            )
-
-            B = len(audio_paths)
-            for i in range(B):
-                logger.info(f"nBatch: {n_batch} nSample: {i}")
-                logger.info(f"AUDIO: {audio_paths[i]}")
-                def replace_CR(text):
-                    return text.replace("\n", "↵") if text is not None else None
-                logger.info(f"TARGET: {replace_CR(target_texts[i])}")
-                logger.info(f"PROMPT: {replace_CR(prompt_texts[i])}")
-                logger.info(f"PREDIC: {replace_CR(genera_texts[i])}")
-                logger.info("=" * 80)
-                print(genera_texts[i])
+        logger.info(f"AUDIO: {args.audio}")
+        def replace_CR(text):
+            return text.replace("\n", "↵") if text is not None else None
+        logger.info(f"PREDIC: {replace_CR(output[0])}")
 
     logger.info(f"Generation took {time.time() - t:.2f} sec")
