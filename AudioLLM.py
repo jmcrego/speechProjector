@@ -213,7 +213,7 @@ class AudioLLM(torch.nn.Module):
 
         # 1) Embed audio
         with torch.no_grad():
-            audio_embs, _ = self.audio_embedder(audio_paths)  # [B, T_audio, D_audio]
+            audio_embs, _ = self.embedder(audio_paths)  # [B, T_audio, D_audio]
 
         audio_embs = audio_embs.to(device)
 
