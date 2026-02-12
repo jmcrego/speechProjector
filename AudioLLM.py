@@ -226,7 +226,7 @@ class AudioLLM(torch.nn.Module):
         # 3) Embed prompt
         prompt_ids = prompt_ids.to(device)
         prompt_embs = self.llm.model.get_input_embeddings()(prompt_ids)  # [B, T_prompt, D]
-        prompt_mask = prompt_ids != self.llm.tokenizer.pad_token_id
+        prompt_mask = prompt_ids != self.tokenizer.pad_token_id
         prompt_lens = prompt_mask.sum(dim=1)                   # [B]
         T_prompt = prompt_ids.size(1)
 
