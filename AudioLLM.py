@@ -81,6 +81,12 @@ class AudioLLM(torch.nn.Module):
         if not is_infer:
             self.summary()
 
+        self.audio_token = config["llm"]["audio_token"]
+        self.audio_token_id = self.tokenizer.convert_tokens_to_ids(self.audio_token)
+        assert self.audio_token_id is not None, "audio_token_id is None"
+        assert isinstance(self.audio_token_id, int), type(self.audio_token_id)
+        logger.info(f"Audio token: '{self.audio_token}' -> ID: {self.audio_token_id}")
+
 
     def save(self, ckpt_path):
         self.projector.save(ckpt_path)
