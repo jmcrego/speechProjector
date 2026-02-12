@@ -78,7 +78,8 @@ class AudioLLM(torch.nn.Module):
         self.alpha = config['optim']['alpha']
         self.gamma = config['optim']['gamma']
 
-        self.summary()
+        if not is_infer:
+            self.summary()
 
 
     def save(self, ckpt_path):
