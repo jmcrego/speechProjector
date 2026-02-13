@@ -62,7 +62,7 @@ config = {
         'gamma': 0.5, # (loss_cos) cosine stabilizer 15, #10,  
         'beta': 0.05, # (loss_scale) scale mostly solved 2, #0,    
         'delta': 0.2, # (loss_ce) 
-        'tau': 0.1,   # temperature for cross-entropy loss
+        'tau': 0.1,   # temperature for loss_ce
         'best_metric': "wer",
         'best_score': "min",
         'scores':[
