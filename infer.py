@@ -16,11 +16,30 @@ from AudioLLM import AudioLLM
 
 logger = logging.getLogger("infer")
 
+def inference(model, audio_paths, prompt, max_new_tokens=256, temperature=0.7, top_p=0.9, no_repeat_ngram_size=0, repetition_penalty=1.1):
+
+    model.eval()
+
+    t = time.time()
+    with torch.no_grad():
+        output = model.generate(
+            audio_paths=[audio_paths] if isinstance(audio_paths, str) else audio_paths,
+            prompt=prompt,
+            max_new_tokens=max_new_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            no_repeat_ngram_size = no_repeat_ngram_size, #dangerous for ASR/STT, speech allow repetitions
+            repetition_penalty = repetition_penalty, #good for ASR/STT, but bad for QA
+        )
+
+    logger.debug(f"Generation took {time.time() - t:.2f} sec")
+
+    return output
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
-        description="Transcribe and/or translate audio using AudioToLLM (Hugging Face).",
+        description="Transcribe and/or translate audio using AudioLLM (Hugging Face).",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument("--config", type=str, required=True, help="Model config file")
@@ -48,10 +67,6 @@ if __name__ == "__main__":
         '<|im_start|>assistant'
     )
 
-    # Create output directory if needed
-    # Path(args.output_dir).mkdir(parents=True, exist_ok=True)
-    # json_logger = JSONMetricsLogger(Path(args.output_dir) / "metrics.jsonl")
-
     # --------------------------------------------------
     # Logging
     # --------------------------------------------------
@@ -68,50 +83,25 @@ if __name__ == "__main__":
     # --------------------------------------------------
     with open(args.config, "r", encoding="utf-8") as file:
         config = json.load(file)
-    logger.info(f"Config: {config}")
-
-    logger.info("=" * 80)
-    logger.info(f"Starting new run @ {datetime.now().isoformat(timespec='seconds')}")
     logger.info(f"CONFIG FILE: {args.config}\n" + json.dumps(config, indent=2) + "\n")
-    logger.info("=" * 80)
-
-    logger.info(f"CUDA available: {torch.cuda.is_available()}")
-    logger.info(f"Device count: {torch.cuda.device_count()}")
+    logger.info(f"CUDA available: {torch.cuda.is_available()}, device count: {torch.cuda.device_count()}")
     device, dtype = get_device_dtype()
     logger.info(f"device: {device}, dtype: {dtype}")
 
-    # --------------------------------------------------
-    # Load models
-    # --------------------------------------------------
     t = time.time()
-    model = AudioLLM(
-        config=config,
-        device=device,
-        dtype=dtype,
-        is_infer=True, 
+    model = AudioLLM(config=config, device=device, dtype=dtype, is_infer=True)
+    logger.debug(f"Loading model took {time.time() - t:.2f} sec")
+
+    output = inference(
+        model, 
+        [args.audio_path], 
+        prompt, 
+        max_new_tokens=args.max_new_tokens, 
+        temperature=args.temperature, 
+        top_p=args.top_p, 
+        no_repeat_ngram_size=args.no_repeat_ngram_size, #dangerous for ASR/STT, speech allow repetitions
+        repetition_penalty=args.repetition_penalty #good for ASR/STT, but bad for QA
     )
-    model.eval()
-    logger.info(f"Loading model took {time.time() - t:.2f} sec")
 
-    # --------------------------------------------------
-    # Inference
-    # --------------------------------------------------
-    t = time.time()
-
-    with torch.no_grad():
-        output = model.generate(
-            audio_paths=[args.audio_path], 
-            prompt=prompt,
-            max_new_tokens=args.max_new_tokens,
-            temperature=args.temperature,
-            top_p=args.top_p,
-            no_repeat_ngram_size = args.no_repeat_ngram_size, #dangerous for ASR/STT, speech allow repetitions
-            repetition_penalty = args.repetition_penalty, #good for ASR/STT, but bad for QA
-        )
-
-        logger.info(f"AUDIO: {args.audio_path}")
-        def replace_CR(text):
-            return text.replace("\n", "↵") if text is not None else None
-        logger.info(f"PREDIC: {replace_CR(output[0])}")
-
-    logger.info(f"Generation took {time.time() - t:.2f} sec")
+    logger.info(f"SRC: {args.audio_path}")
+    logger.info(f"HYP: {output[0]}")
