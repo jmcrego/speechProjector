@@ -137,9 +137,12 @@ class AudioLLM(torch.nn.Module):
         # same vectors → cos=1, orthogonal → cos=0, opposite → cos=-1
         loss_cos = 1.0 - cos.mean()
 
+        # ----- scale loss -----
+        loss_scale = ((proj_embs.norm(dim=-1) - text_embs.norm(dim=-1))**2)[txt_mask].mean()
+
         # ----- Final loss -----
         # loss_mse handles scale + direction, loss_cos handles purely direction
-        loss = loss_mse + self.gamma * loss_cos 
+        loss = loss_mse + self.gamma * loss_cos + self.beta * loss_scale
 
         # ----- Logging info -----
         audio_norm = proj_embs.norm(dim=-1).mean()
