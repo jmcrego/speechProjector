@@ -77,6 +77,7 @@ class AudioLLM(torch.nn.Module):
 
         self.alpha = config['optim']['alpha']
         self.gamma = config['optim']['gamma']
+        self.beta = config['optim']['beta']
 
         if not is_infer:
             self.summary()
