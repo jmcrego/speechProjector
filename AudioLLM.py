@@ -78,6 +78,7 @@ class AudioLLM(torch.nn.Module):
         self.alpha = config['optim']['alpha']
         self.gamma = config['optim']['gamma']
         self.beta = config['optim']['beta']
+        self.delta = config['optim']['delta']
 
         if not is_infer:
             self.summary()
@@ -130,20 +131,25 @@ class AudioLLM(torch.nn.Module):
         loss_mse_txt = F.mse_loss(text_embs[txt_mask], proj_embs[txt_mask], reduction="mean")
         loss_mse_pad = F.mse_loss(text_embs[pad_mask], proj_embs[pad_mask], reduction="mean")
 
-        # Combine MSE contributions
-        loss_mse = self.alpha * loss_mse_txt + (1 - self.alpha) * loss_mse_pad
-
         # ----- Cosine loss: directional alignment -----
         cos = F.cosine_similarity(text_embs[txt_mask], proj_embs[txt_mask], dim=-1)
         # same vectors → cos=1, orthogonal → cos=0, opposite → cos=-1
         loss_cos = 1.0 - cos.mean()
 
-        # ----- scale loss -----
+        # ----- scale loss: handles scale differences -----
         loss_scale = ((proj_embs.norm(dim=-1) - text_embs.norm(dim=-1))**2)[txt_mask].mean()
+
+        # --- Cross-entropy loss: handles token-level prediction ---
+        #  encourages correct direction + scale, but can be unstable early in training, use with caution
+        logits = torch.matmul(proj_embs[txt_mask], self.llm_embedder.weight.t()) / self.tau # logits: [N_txt, D] x [D, V] -> [N_txt, V]
+        loss_ce = F.cross_entropy(logits, target_ids[txt_mask], reduction="mean")
 
         # ----- Final loss -----
         # loss_mse handles scale + direction, loss_cos handles purely direction
-        loss = loss_mse + self.gamma * loss_cos + self.beta * loss_scale
+        loss = self.alpha * loss_mse_txt + (1 - self.alpha) * loss_mse_pad + \
+            self.gamma * loss_cos + \
+            self.beta * loss_scale + \
+            self.delta * loss_ce
 
         # ----- Logging info -----
         audio_norm = proj_embs.norm(dim=-1).mean()
@@ -155,6 +161,7 @@ class AudioLLM(torch.nn.Module):
             "loss_mse_pad": loss_mse_pad,
             "loss_cos": loss_cos,
             "loss_scale": loss_scale,
+            "loss_ce": loss_ce,
             "audio_norm": audio_norm,
             "text_norm": text_norm,
         }
