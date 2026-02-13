@@ -30,7 +30,7 @@ if __name__ == "__main__":
     parser.add_argument("--eval", nargs="+", default=None, help="Evaluation samples.jsonl files")
     # opt pars
     parser.add_argument("--max_steps", type=int, default=100000, help="Maximum number of training steps (must be >0 for scheduler)")
-    parser.add_argument("--max_epochs", type=int, default=1, help="Maximum number of training epochs (0 for no limit)")
+    parser.add_argument("--max_epochs", type=int, default=0, help="Maximum number of training epochs (0 for no limit)")
     # train pars
     parser.add_argument("--batch_size", type=int, default=64, help="Number of samples in a batch")
     parser.add_argument("--accum_steps", type=int, default=1, help="Accumulate this many batchs before optimizing")
