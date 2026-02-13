@@ -153,6 +153,7 @@ class AudioLLM(torch.nn.Module):
             "loss_mse_txt": loss_mse_txt,
             "loss_mse_pad": loss_mse_pad,
             "loss_cos": loss_cos,
+            "loss_scale": loss_scale,
             "audio_norm": audio_norm,
             "text_norm": text_norm,
         }

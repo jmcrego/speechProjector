@@ -192,6 +192,7 @@ class Trainer:
 
                     accum['loss'] += raw_loss.item()
                     accum['loss_cos'] += outputs["loss_cos"].item()
+                    accum['loss_scale'] += outputs["loss_scale"].item()
                     accum['loss_mse_txt'] += outputs["loss_mse_txt"].item()
                     accum['loss_mse_pad'] += outputs["loss_mse_pad"].item()
                     accum['audio_norm'] += outputs["audio_norm"].item()
@@ -286,6 +287,7 @@ class Trainer:
 
             accum['loss'] += outputs["loss"].item()
             accum['loss_cos'] += outputs["loss_cos"].item()
+            accum['loss_scale'] += outputs["loss_scale"].item()
             accum['loss_mse_txt'] += outputs["loss_mse_txt"].item()
             accum['loss_mse_pad'] += outputs["loss_mse_pad"].item()
             accum['audio_norm'] += outputs["audio_norm"].item()
@@ -315,6 +317,7 @@ class Trainer:
         audio_norm = accum['audio_norm'] / max(1, accum['n_batchs'])
         text_norm = accum['text_norm'] / max(1, accum['n_batchs'])
         loss_cos = accum['loss_cos'] / max(1, accum['n_batchs'])
+        loss_scale = accum['loss_scale'] / max(1, accum['n_batchs'])
         loss_mse_txt = accum['loss_mse_txt'] / max(1, accum['n_batchs'])
         loss_mse_pad = accum['loss_mse_pad'] / max(1, accum['n_batchs'])
         scale_val = accum.get('scale', None)
@@ -327,6 +330,7 @@ class Trainer:
         log_str += f"epoch={self.sample/len(self.train_dataset):.3f}/{self.max_epochs} | "
         log_str += f"loss={loss:.3f} | "
         log_str += f"𝓛_cos={loss_cos:.3f} | " if loss_cos is not None else ""
+        log_str += f"𝓛_scale={loss_scale:.3f} | " if loss_scale is not None else ""
         log_str += f"𝓛_mse_txt={loss_mse_txt:.3f} | " if loss_mse_txt is not None else ""
         log_str += f"𝓛_mse_pad={loss_mse_pad:.3f} | " if loss_mse_pad is not None else ""
         log_str += f"lr_proj={self.optimizer.param_groups[0]['lr']:.3e} | "
@@ -353,6 +357,7 @@ class Trainer:
                 audio_norm=audio_norm, 
                 text_norm=text_norm,
                 loss_cos=loss_cos,
+                loss_scale=loss_scale,
                 loss_mse_txt=loss_mse_txt,
                 loss_mse_pad=loss_mse_pad,
                 proj_grad_norm=proj_grad_norm,
