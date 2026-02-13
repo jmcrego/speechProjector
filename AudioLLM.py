@@ -153,7 +153,6 @@ class AudioLLM(torch.nn.Module):
             + self.beta * loss_scale
             + self.delta * loss_ce
         )
-        # set of unicode symbol for loss: 
 
         # ----- Logging info -----
         audio_norm = proj_embs.norm(dim=-1).mean()
