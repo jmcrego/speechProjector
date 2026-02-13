@@ -76,8 +76,8 @@ class AudioLLM(torch.nn.Module):
             logger.info(f"LLM Embedder: {next(self.llm_embedder.parameters()).dtype} on {next(self.llm_embedder.parameters()).device}")
 
         self.alpha = config['optim']['alpha']
-        self.gamma = config['optim']['gamma']
         self.beta = config['optim']['beta']
+        self.gamma = config['optim']['gamma']
         self.delta = config['optim']['delta']
         self.tau = config['optim']['tau']
 
@@ -148,7 +148,8 @@ class AudioLLM(torch.nn.Module):
         # ----- Final loss -----
         # loss_mse handles scale + direction, loss_cos handles purely direction
         loss = (
-            self.alpha * loss_mse_txt + (1 - self.alpha) * loss_mse_pad
+            self.alpha * loss_mse_txt 
+            + (1 - self.alpha) * loss_mse_pad
             + self.gamma * loss_cos
             + self.beta * loss_scale
             + self.delta * loss_ce
