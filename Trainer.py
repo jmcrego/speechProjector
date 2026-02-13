@@ -332,11 +332,11 @@ class Trainer:
         log_str += f"step={self.step:0>6d}/{self.max_steps} | "
         log_str += f"epoch={self.sample/len(self.train_dataset):.3f}/{self.max_epochs} | "
         log_str += f"loss={loss:.4f} | "
-        log_str += f"𝓛_cos={loss_cos:.4f} | " if loss_cos is not None else ""
-        log_str += f"𝓛_ce={loss_ce:.4f} | " if loss_ce is not None else ""
-        log_str += f"𝓛_scale={loss_scale:.4f} | " if loss_scale is not None else ""
-        log_str += f"𝓛_mse_txt={loss_mse_txt:.4f} | " if loss_mse_txt is not None else ""
-        log_str += f"𝓛_mse_pad={loss_mse_pad:.4f} | " if loss_mse_pad is not None else ""
+        log_str += f"ℒ_cos={loss_cos:.4f} | " if loss_cos is not None else ""
+        log_str += f"ℒ_ce={loss_ce:.4f} | " if loss_ce is not None else ""
+        log_str += f"ℒ_scale={loss_scale:.4f} | " if loss_scale is not None else ""
+        log_str += f"ℒ_mse_txt={loss_mse_txt:.4f} | " if loss_mse_txt is not None else ""
+        log_str += f"ℒ_mse_pad={loss_mse_pad:.4f} | " if loss_mse_pad is not None else ""
         log_str += f"lr_proj={self.optimizer.param_groups[0]['lr']:.3e} | "
 
         if proj_grad_norm is not None:
@@ -361,6 +361,7 @@ class Trainer:
                 audio_norm=audio_norm, 
                 text_norm=text_norm,
                 loss_cos=loss_cos,
+                loss_ce=loss_ce,
                 loss_scale=loss_scale,
                 loss_mse_txt=loss_mse_txt,
                 loss_mse_pad=loss_mse_pad,

@@ -60,7 +60,8 @@ config = {
         'alpha': 0.6, #0.5,   # 𝐿_MSE = 𝛼 MSE_txt + (1−𝛼) MSE_pad, use [0, 1]
         'gamma': 15, #10,  
         'beta': 2, #0,    
-        'delta': 1, #0, # 𝐿 = 𝐿_MSE + 𝛾 𝐿_cosine + 𝛽 𝐿_scale
+        'delta': 1, #0, # 𝐿 = 𝐿_MSE + 𝛾 𝐿_cosine + 𝛽 𝐿_scale + 𝛿 𝐿_ce
+        'tau': 0.1, #temperature for cross-entropy loss
         'best_metric': "wer",
         'best_score': "min",
         'scores':[

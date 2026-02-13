@@ -79,6 +79,7 @@ class AudioLLM(torch.nn.Module):
         self.gamma = config['optim']['gamma']
         self.beta = config['optim']['beta']
         self.delta = config['optim']['delta']
+        self.tau = config['optim']['tau']
 
         if not is_infer:
             self.summary()
@@ -146,10 +147,13 @@ class AudioLLM(torch.nn.Module):
 
         # ----- Final loss -----
         # loss_mse handles scale + direction, loss_cos handles purely direction
-        loss = self.alpha * loss_mse_txt + (1 - self.alpha) * loss_mse_pad + \
-            self.gamma * loss_cos + \
-            self.beta * loss_scale + \
-            self.delta * loss_ce
+        loss = (
+            self.alpha * loss_mse_txt + (1 - self.alpha) * loss_mse_pad
+            + self.gamma * loss_cos
+            + self.beta * loss_scale
+            + self.delta * loss_ce
+        )
+        # set of unicode symbol for loss: 
 
         # ----- Logging info -----
         audio_norm = proj_embs.norm(dim=-1).mean()
