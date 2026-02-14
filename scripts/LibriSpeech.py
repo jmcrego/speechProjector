@@ -17,7 +17,7 @@ from text_normalize import normalize_text
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Extract LibriSpeech audio fragments and build JSONL.")
+    parser = argparse.ArgumentParser(description="Extract LibriSpeech audio fragments and build JSONL.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--idir", type=str, default="/lustre/fsmisc/dataset/LibriSpeech", help="Input path")
     parser.add_argument("--odir", type=str, default="/lustre/fsn1/projects/rech/eut/ujt99zo/josep/datasets", help="Output path")
     args = parser.parse_args()
