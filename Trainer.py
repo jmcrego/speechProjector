@@ -188,14 +188,12 @@ class Trainer:
 
                     accum['loss'] += raw_loss.item()
                     accum['loss_cos'] += outputs["loss_cos"]
-                    accum['loss_ce'] += outputs["loss_ce"].item()
-                    accum['loss_scale'] += outputs["loss_scale"].item()
-                    accum['loss_mse_txt'] += outputs["loss_mse_txt"].item()
-                    accum['loss_mse_pad'] += outputs["loss_mse_pad"].item()
-                    accum['audio_norm'] += outputs["audio_norm"].item()
-                    accum['text_norm'] += outputs["text_norm"].item()
-                    # accum['n_pads'] += (target_ids == self.tokenizer.pad_token_id).sum().item()
-                    # accum['n_samples'] += target_ids.size(0)
+                    accum['loss_ce'] += outputs["loss_ce"]
+                    accum['loss_scale'] += outputs["loss_scale"]
+                    accum['loss_mse_txt'] += outputs["loss_mse_txt"]
+                    accum['loss_mse_pad'] += outputs["loss_mse_pad"]
+                    accum['audio_norm'] += outputs["audio_norm"]
+                    accum['text_norm'] += outputs["text_norm"]
                     accum['n_batchs'] += 1
     
                 # Backward pass
@@ -319,8 +317,6 @@ class Trainer:
         loss_mse_pad = accum['loss_mse_pad'] / max(1, accum['n_batchs'])
         scale_val = accum.get('scale', None)
         proj_grad_norm = accum.get('proj_grad_norm', None)
-        # total_pads = accum['n_pads']
-        # total_samples = accum['n_samples']
 
         log_str =  f"{'VAL ' if is_eval else 'TRN'} | "
         log_str += f"step={self.step:0>6d}/{self.max_steps} | "
@@ -342,8 +338,6 @@ class Trainer:
             log_str += f"scale={scale_val:.2f} | "
         if proj_grad_norm is not None:
             log_str += f"‖proj_grad‖={proj_grad_norm:.2f} | "
-        # if total_samples:
-        #     log_str += f"pads_per_sample={total_pads/total_samples:.2f} | "
         
         log_str += f"elapsed={h:02d}:{m:02d}:{s:02d}"
         logger.info(log_str)
@@ -363,7 +357,6 @@ class Trainer:
                 lr_proj=self.optimizer.param_groups[0]['lr'],
                 proj_grad_norm=proj_grad_norm,
                 scale=scale_val,
-                # pads_per_sample=(total_pads/total_samples) if total_samples else None,
                 elapsed=f"{h:02d}:{m:02d}:{s:02d}",
             )
 
