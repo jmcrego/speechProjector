@@ -280,7 +280,7 @@ class Trainer:
                 # Pass input_embeds instead of input_ids to the model, along with target_ids and attention_mask for loss computation
                 outputs = self.model(target_ids, pt_paths, offsets) 
 
-            accum['loss'] += outputs["loss"]
+            accum['loss'] += outputs["loss"].item()
             accum['loss_cos'] += outputs["loss_cos"]
             accum['loss_ce'] += outputs["loss_ce"]
             accum['loss_scale'] += outputs["loss_scale"]
