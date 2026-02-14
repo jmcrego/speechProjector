@@ -57,16 +57,11 @@ config = {
     "optim": { # 𝐿 = 𝐿_MSE + 𝛾 𝐿_cosine + 𝛽 𝐿_scale + 𝛿 𝐿_ce AND 𝐿_MSE = 𝛼 MSE_txt + (1−𝛼) MSE_pad
         'lr_proj': 1e-4,
         'warmup_steps': 2000, # ~10% of total steps
-        'alpha': 0.9, # (loss_mse) focus on real tokens 0.6, #0.5,   
-        'gamma': 0.5, # (loss_cos) cosine stabilizer 15, #10,  
-        'beta': 0.05, # (loss_scale) scale mostly solved 2, #0,    
-        'delta': 0.2, # (loss_ce) 
-        'tau': 0.1,   # temperature for loss_ce
-        'best_metric': "wer",
-        'best_score': "min",
-        'scores':[
-            #'checkpoint': score,
-        ]
+        'weight_mse': 0.9,
+        'weight_cos': 0.5,
+        'weight_scale': 0.05,
+        'weight_ce': 0.2, 
+        'temp_ce': 0.1,
     },
 }
 

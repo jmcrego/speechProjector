@@ -31,6 +31,11 @@ if __name__ == "__main__":
     # opt pars
     parser.add_argument("--max_steps", type=int, default=100000, help="Maximum number of training steps (must be >0 for scheduler)")
     parser.add_argument("--max_epochs", type=int, default=0, help="Maximum number of training epochs (0 for no limit)")
+    parser.add_argument("--weight_mse", type=float, default=5.0, help="MSE loss = weight_MSE MSE_txt + (10 - weight_MSE) MSE_pad")
+    parser.add_argument("--weight_cos", type=float, default=100.0, help="Weight of cosine loss (0 to disable it)")
+    parser.add_argument("--weight_scale", type=float, default=0., help="Weight of scale loss (0 to disable it)")
+    parser.add_argument("--weight_ce", type=float, default=0., help="Weight of cross-entropy loss (0 to disable it)")
+    parser.add_argument("--temp_ce", type=float, default=1.0, help="Temperature for cross-entropy loss")
     # train pars
     parser.add_argument("--batch_size", type=int, default=64, help="Number of samples in a batch")
     parser.add_argument("--accum_steps", type=int, default=1, help="Accumulate this many batchs before optimizing")
@@ -58,6 +63,13 @@ if __name__ == "__main__":
 
     with open(args.config, "r", encoding="utf-8") as file:
         config = json.load(file)
+
+    # pass weights via config file
+    config['optim']['weight_mse'] = args.weight_mse
+    config['optim']['weight_cos'] = args.weight_cos
+    config['optim']['weight_scale'] = args.weight_scale
+    config['optim']['weight_ce'] = args.weight_ce
+    config['optim']['temp_ce'] = args.temp_ce
 
     logger.info("=" * 80)
     logger.info(f"Starting new run @ {datetime.now().isoformat(timespec='seconds')}")

@@ -75,12 +75,11 @@ class AudioLLM(torch.nn.Module):
         else:
             logger.info(f"LLM Embedder: {next(self.llm_embedder.parameters()).dtype} on {next(self.llm_embedder.parameters()).device}")
 
-        self.alpha = config['optim']['alpha']
-        self.beta = config['optim']['beta']
-        self.gamma = config['optim']['gamma']
-        self.delta = config['optim']['delta']
-        self.tau = config['optim']['tau']
-
+        self.weight_mse = config['optim']['weight_mse']
+        self.weight_cos = config['optim']['weight_cos']
+        self.weight_scale = config['optim']['weight_scale']
+        self.weight_ce = config['optim']['weight_ce']
+        self.temp_ce = config['optim']['temp_ce']
         if not is_infer:
             self.summary()
 
@@ -133,26 +132,31 @@ class AudioLLM(torch.nn.Module):
         loss_mse_pad = F.mse_loss(text_embs[pad_mask], proj_embs[pad_mask], reduction="mean")
 
         # ----- Cosine loss: directional alignment -----
-        cos = F.cosine_similarity(text_embs[txt_mask], proj_embs[txt_mask], dim=-1)
-        # same vectors → cos=1, orthogonal → cos=0, opposite → cos=-1
-        loss_cos = 1.0 - cos.mean()
+        if self.weight_cos > 0:
+            cos = F.cosine_similarity(text_embs[txt_mask], proj_embs[txt_mask], dim=-1) # same vectors → cos=1, orthogonal → cos=0, opposite → cos=-1
+            loss_cos = 1.0 - cos.mean()
+        else:
+            loss_cos = 0.0
 
         # ----- scale loss: handles scale differences -----
-        loss_scale = ((proj_embs.norm(dim=-1) - text_embs.norm(dim=-1))**2)[txt_mask].mean()
+        if self.weight_scale > 0:
+            loss_scale = ((proj_embs.norm(dim=-1) - text_embs.norm(dim=-1))**2)[txt_mask].mean()
+        else:
+            loss_scale = 0.0
 
         # --- Cross-entropy loss: handles token-level prediction ---
-        #  encourages correct direction + scale, but can be unstable early in training, use with caution
-        logits = torch.matmul(proj_embs[txt_mask], self.llm_embedder.weight.t()) / self.tau # logits: [N_txt, D] x [D, V] -> [N_txt, V]
-        loss_ce = F.cross_entropy(logits, target_ids[txt_mask], reduction="mean")
+        if self.weight_ce > 0:
+            logits = torch.matmul(proj_embs[txt_mask], self.llm_embedder.weight.t()) / self.temp_ce # logits: [N_txt, D] x [D, V] -> [N_txt, V]
+            loss_ce = F.cross_entropy(logits, target_ids[txt_mask], reduction="mean")
+        else:
+            loss_ce = 0.0
 
         # ----- Final loss -----
-        # loss_mse handles scale + direction, loss_cos handles purely direction
         loss = (
-            self.alpha * loss_mse_txt 
-            + (1 - self.alpha) * loss_mse_pad
-            + self.gamma * loss_cos
-            + self.beta * loss_scale
-            + self.delta * loss_ce
+            self.weight_mse * loss_mse_txt + (1 - self.weight_mse) * loss_mse_pad
+            + self.weight_cos * loss_cos
+            + self.weight_scale * loss_scale
+            + self.weight_ce * loss_ce
         )
 
         # ----- Logging info -----
