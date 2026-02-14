@@ -71,7 +71,7 @@ def main():
             h = (t_out // 3600)
             m = (t_out % 3600) // 60
             s = t_out % 60
-            print(f"Created {n_out} out of {n_in} audio segments. Duration is {h}:{m:02d}:{s:05.2f} ({t_out/n_out:.1f} secs/file)\n")
+            print(f"Created {n_out} out of {n_in} audio segments. Duration is {h}:{m}:{s:05.2f} ({t_out/n_out:.1f} secs/file)\n")
 
 
 if __name__ == "__main__":
