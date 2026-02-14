@@ -86,7 +86,7 @@ class Trainer:
 
         if max_epochs:
             self.max_steps = min(self.max_steps, int(len(train_dataset) / (batch_size * accum_steps)))
-            logger.info(f"max_steps set to {self.max_steps}")
+            logger.info(f"converted max_epochs={max_epochs} to max_steps={self.max_steps}")
 
         # -----------------------
         # Optimizer & Scheduler
@@ -250,13 +250,13 @@ class Trainer:
                               f"{self.sample/len(self.train_dataset):.3f} epochs.")
                         break
 
-            if self.max_epochs and self.epoch >= self.max_epochs:
-                logger.info(f"Reached max epochs {self.max_epochs}, stopping training after "
-                      f"{self.sample} samples, "
-                      f"{self.step} steps, "
-                      f"{self.batch} batches, "
-                      f"{self.sample/len(self.train_dataset):.3f} epochs.")
-                break
+            # if self.max_epochs and self.epoch >= self.max_epochs:
+            #     logger.info(f"Reached max epochs {self.max_epochs}, stopping training after "
+            #           f"{self.sample} samples, "
+            #           f"{self.step} steps, "
+            #           f"{self.batch} batches, "
+            #           f"{self.sample/len(self.train_dataset):.3f} epochs.")
+            #     break
 
         logger.info("End training")
 
@@ -330,7 +330,8 @@ class Trainer:
 
         log_str =  f"{'VAL ' if is_eval else 'TRN'} | "
         log_str += f"step={self.step:0>6d}/{self.max_steps} | "
-        log_str += f"epoch={self.sample/len(self.train_dataset):.3f}/{self.max_epochs} | "
+        # log_str += f"epoch={self.sample/len(self.train_dataset):.3f}/{self.max_epochs} | "
+        log_str += f"epoch={self.sample/len(self.train_dataset):.3f} | "
         log_str += f"loss={loss:.4f} | "
         log_str += f"ℒ_cos={loss_cos:.4f} | " if loss_cos is not None else ""
         log_str += f"ℒ_ce={loss_ce:.4f} | " if loss_ce is not None else ""
