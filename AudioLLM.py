@@ -153,7 +153,7 @@ class AudioLLM(torch.nn.Module):
 
         # ----- Final loss -----
         loss = (
-            self.weight_mse * loss_mse_txt + (1 - self.weight_mse) * loss_mse_pad
+            self.weight_mse * loss_mse_txt + (10 - self.weight_mse) * loss_mse_pad
             + self.weight_cos * loss_cos
             + self.weight_scale * loss_scale
             + self.weight_ce * loss_ce
