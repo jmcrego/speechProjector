@@ -53,10 +53,10 @@ def main():
                             print(f"Audio file {audio_path} not found, skipping\n", file=sys.stderr)
                             continue
 
-                        # d = duration(audio_path)
-                        # if d > 30.0:
-                        #     print(f"Audio file {audio_path} is too long ({duration(audio_path):.1f} sec), skipping\n", file=sys.stderr)
-                        #     continue
+                        d = duration(audio_path)
+                        if d > 30.0:
+                            print(f"Audio file {audio_path} is too long ({duration(audio_path):.1f} sec), skipping\n", file=sys.stderr)
+                            continue
 
                         f_json.write(
                             json.dumps({
