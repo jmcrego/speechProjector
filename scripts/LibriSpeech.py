@@ -50,6 +50,11 @@ def main():
                         text = normalize_text(text)
                         audio_path = file.parent / f"{audio_stem}.flac"
 
+                        if not text:
+                            if args.debug:
+                                print(f"Audio file {audio_path} has empty transcription, skipping", file=sys.stderr)
+                            continue
+
                         if not audio_path.exists():
                             if args.debug:
                                 print(f"Audio file {audio_path} not found, skipping", file=sys.stderr)
