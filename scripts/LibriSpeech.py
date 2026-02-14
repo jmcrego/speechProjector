@@ -50,12 +50,12 @@ def main():
                         audio_path = file.parent / f"{audio_stem}.flac"
 
                         if not audio_path.exists():
-                            print(f"Audio file {audio_path} not found, skipping\n", file=sys.stderr)
+                            # print(f"Audio file {audio_path} not found, skipping", file=sys.stderr)
                             continue
 
                         d = duration(audio_path)
                         if d > 30.0:
-                            print(f"Audio file {audio_path} is too long ({duration(audio_path):.1f} sec), skipping\n", file=sys.stderr)
+                            # print(f"Audio file {audio_path} is too long ({duration(audio_path):.1f} sec), skipping", file=sys.stderr)
                             continue
 
                         f_json.write(
