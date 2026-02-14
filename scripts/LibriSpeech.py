@@ -20,6 +20,7 @@ def main():
     parser = argparse.ArgumentParser(description="Extract LibriSpeech audio fragments and build JSONL.", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--idir", type=str, default="/lustre/fsmisc/dataset/LibriSpeech", help="Input path")
     parser.add_argument("--odir", type=str, default="/lustre/fsn1/projects/rech/eut/ujt99zo/josep/datasets", help="Output path")
+    parser.add_argument("--debug", action="store_true", help="Debug mode with more logging")
     args = parser.parse_args()
 
     base_path = Path(args.idir)
@@ -50,12 +51,14 @@ def main():
                         audio_path = file.parent / f"{audio_stem}.flac"
 
                         if not audio_path.exists():
-                            # print(f"Audio file {audio_path} not found, skipping", file=sys.stderr)
+                            if args.debug:
+                                print(f"Audio file {audio_path} not found, skipping", file=sys.stderr)
                             continue
 
                         d = duration(audio_path)
                         if d > 30.0:
-                            # print(f"Audio file {audio_path} is too long ({duration(audio_path):.1f} sec), skipping", file=sys.stderr)
+                            if args.debug:
+                                print(f"Audio file {audio_path} is too long ({duration(audio_path):.1f} sec), skipping", file=sys.stderr)
                             continue
 
                         f_json.write(
