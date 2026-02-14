@@ -205,6 +205,15 @@ def compute_grad_norm(params, eps=1e-6):
 
 #     return samples
 
+def duration(audio_path):
+    try:
+        info = sf.info(audio_path)
+        if not info.frames or not info.samplerate:
+            return 0.0
+        return info.frames / info.samplerate
+    except Exception as e:
+        logger.warning(f"duration: failed to read audio {audio_path}: {e}")
+        return 0.0
 
 def _process_entry(entry, path, max_duration, split, slang, tlang):
     """
