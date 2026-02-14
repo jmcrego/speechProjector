@@ -10,7 +10,7 @@ from tqdm import tqdm
 import json
 #import soxr 
 #import os
-#import sys
+import sys
 #from scipy.io.wavfile import write
 from utils import duration #load_audio_ffmpeg, extract_fragments, 
 from text_normalize import normalize_text
@@ -50,13 +50,13 @@ def main():
                         audio_path = file.parent / f"{audio_stem}.flac"
 
                         if not audio_path.exists():
-                            print(f"Audio file {audio_path} not found, skipping")
+                            print(f"Audio file {audio_path} not found, skipping\n", file=sys.stderr)
                             continue
 
-                        d = duration(audio_path)
-                        if d > 30.0:
-                            print(f"Audio file {audio_path} is too long ({duration(audio_path):.1f} sec), skipping")
-                            continue
+                        # d = duration(audio_path)
+                        # if d > 30.0:
+                        #     print(f"Audio file {audio_path} is too long ({duration(audio_path):.1f} sec), skipping\n", file=sys.stderr)
+                        #     continue
 
                         f_json.write(
                             json.dumps({
