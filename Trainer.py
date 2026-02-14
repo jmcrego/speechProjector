@@ -84,10 +84,6 @@ class Trainer:
         self.eval_loader = DataLoader(eval_dataset, batch_sampler=self.eval_sampler, collate_fn=collate_fn)
         logger.info(f"Initialized Sampler and DataLoader for eval with batch_size={batch_size} with {len(self.eval_dataset)} samples")
 
-        if max_epochs:
-            self.max_steps = min(self.max_steps, int(len(train_dataset) / (batch_size * accum_steps)))
-            logger.info(f"converted max_epochs={max_epochs} to max_steps={self.max_steps}")
-
         # -----------------------
         # Optimizer & Scheduler
         # -----------------------
@@ -198,8 +194,8 @@ class Trainer:
                     accum['loss_mse_pad'] += outputs["loss_mse_pad"].item()
                     accum['audio_norm'] += outputs["audio_norm"].item()
                     accum['text_norm'] += outputs["text_norm"].item()
-                    accum['n_pads'] += (target_ids == self.tokenizer.pad_token_id).sum().item()
-                    accum['n_samples'] += target_ids.size(0)
+                    # accum['n_pads'] += (target_ids == self.tokenizer.pad_token_id).sum().item()
+                    # accum['n_samples'] += target_ids.size(0)
                     accum['n_batchs'] += 1
     
                 # Backward pass
@@ -250,13 +246,13 @@ class Trainer:
                               f"{self.sample/len(self.train_dataset):.3f} epochs.")
                         break
 
-            # if self.max_epochs and self.epoch >= self.max_epochs:
-            #     logger.info(f"Reached max epochs {self.max_epochs}, stopping training after "
-            #           f"{self.sample} samples, "
-            #           f"{self.step} steps, "
-            #           f"{self.batch} batches, "
-            #           f"{self.sample/len(self.train_dataset):.3f} epochs.")
-            #     break
+            if self.max_epochs and self.epoch >= self.max_epochs:
+                logger.info(f"Reached max epochs {self.max_epochs}, stopping training after "
+                      f"{self.sample} samples, "
+                      f"{self.step} steps, "
+                      f"{self.batch} batches, "
+                      f"{self.sample/len(self.train_dataset):.3f} epochs.")
+                break
 
         logger.info("End training")
 
@@ -294,8 +290,8 @@ class Trainer:
             accum['loss_mse_pad'] += outputs["loss_mse_pad"].item()
             accum['audio_norm'] += outputs["audio_norm"].item()
             accum['text_norm'] += outputs["text_norm"].item()
-            accum['n_pads'] += (target_ids == self.tokenizer.pad_token_id).sum().item()
-            accum['n_samples'] += target_ids.size(0)
+            # accum['n_pads'] += (target_ids == self.tokenizer.pad_token_id).sum().item()
+            # accum['n_samples'] += target_ids.size(0)
             accum['n_batchs'] += 1
 
 
@@ -325,8 +321,8 @@ class Trainer:
         loss_mse_pad = accum['loss_mse_pad'] / max(1, accum['n_batchs'])
         scale_val = accum.get('scale', None)
         proj_grad_norm = accum.get('proj_grad_norm', None)
-        total_pads = accum['n_pads']
-        total_samples = accum['n_samples']
+        # total_pads = accum['n_pads']
+        # total_samples = accum['n_samples']
 
         log_str =  f"{'VAL ' if is_eval else 'TRN'} | "
         log_str += f"step={self.step:0>6d}/{self.max_steps} | "
@@ -340,16 +336,16 @@ class Trainer:
         log_str += f"ℒ_mse_pad={loss_mse_pad:.4f} | " if loss_mse_pad is not None else ""
         log_str += f"lr_proj={self.optimizer.param_groups[0]['lr']:.3e} | "
 
-        if proj_grad_norm is not None:
-            log_str += f"‖proj_grad‖={proj_grad_norm:.2f} | "
-        if scale_val is not None:
-            log_str += f"scale={scale_val:.2f} | "
         if audio_norm is not None:
             log_str += f"‖audio‖={audio_norm:.2f} | "
         if text_norm is not None:
             log_str += f"‖text‖={text_norm:.2f} | "
-        if total_samples:
-            log_str += f"pads_per_sample={total_pads/total_samples:.2f} | "
+        if scale_val is not None:
+            log_str += f"scale={scale_val:.2f} | "
+        if proj_grad_norm is not None:
+            log_str += f"‖proj_grad‖={proj_grad_norm:.2f} | "
+        # if total_samples:
+        #     log_str += f"pads_per_sample={total_pads/total_samples:.2f} | "
         
         log_str += f"elapsed={h:02d}:{m:02d}:{s:02d}"
         logger.info(log_str)
@@ -359,17 +355,17 @@ class Trainer:
                 split="eval" if is_eval else "train", 
                 step=self.step, 
                 loss=loss, 
-                audio_norm=audio_norm, 
-                text_norm=text_norm,
                 loss_cos=loss_cos,
                 loss_ce=loss_ce,
                 loss_scale=loss_scale,
                 loss_mse_txt=loss_mse_txt,
                 loss_mse_pad=loss_mse_pad,
+                audio_norm=audio_norm, 
+                text_norm=text_norm,
+                lr_proj=self.optimizer.param_groups[0]['lr'],
                 proj_grad_norm=proj_grad_norm,
                 scale=scale_val,
-                lr_proj=self.optimizer.param_groups[0]['lr'],
-                pads_per_sample=(total_pads/total_samples) if total_samples else None,
+                # pads_per_sample=(total_pads/total_samples) if total_samples else None,
                 elapsed=f"{h:02d}:{m:02d}:{s:02d}",
             )
 
