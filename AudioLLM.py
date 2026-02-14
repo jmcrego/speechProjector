@@ -165,13 +165,13 @@ class AudioLLM(torch.nn.Module):
 
         return {
             "loss": loss,
-            "loss_mse_txt": loss_mse_txt,
-            "loss_mse_pad": loss_mse_pad,
-            "loss_cos": loss_cos,
-            "loss_scale": loss_scale,
-            "loss_ce": loss_ce,
-            "audio_norm": audio_norm,
-            "text_norm": text_norm,
+            "loss_mse_txt": loss_mse_txt.item() if isinstance(loss_mse_txt, torch.Tensor) else loss_mse_txt,
+            "loss_mse_pad": loss_mse_pad.item() if isinstance(loss_mse_pad, torch.Tensor) else loss_mse_pad,
+            "loss_cos": loss_cos.item() if isinstance(loss_cos, torch.Tensor) else loss_cos,
+            "loss_scale": loss_scale.item() if isinstance(loss_scale, torch.Tensor) else loss_scale,
+            "loss_ce": loss_ce.item() if isinstance(loss_ce, torch.Tensor) else loss_ce,
+            "audio_norm": audio_norm.item() if isinstance(audio_norm, torch.Tensor) else audio_norm,
+            "text_norm": text_norm.item() if isinstance(text_norm, torch.Tensor) else text_norm,
         }
 
     def generate(

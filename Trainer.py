@@ -187,7 +187,7 @@ class Trainer:
                     loss = raw_loss / self.accum_steps                    
 
                     accum['loss'] += raw_loss.item()
-                    accum['loss_cos'] += outputs["loss_cos"].item()
+                    accum['loss_cos'] += outputs["loss_cos"]
                     accum['loss_ce'] += outputs["loss_ce"].item()
                     accum['loss_scale'] += outputs["loss_scale"].item()
                     accum['loss_mse_txt'] += outputs["loss_mse_txt"].item()
@@ -282,16 +282,14 @@ class Trainer:
                 # Pass input_embeds instead of input_ids to the model, along with target_ids and attention_mask for loss computation
                 outputs = self.model(target_ids, pt_paths, offsets) 
 
-            accum['loss'] += outputs["loss"].item()
-            accum['loss_cos'] += outputs["loss_cos"].item()
-            accum['loss_ce'] += outputs["loss_ce"].item()
-            accum['loss_scale'] += outputs["loss_scale"].item()
-            accum['loss_mse_txt'] += outputs["loss_mse_txt"].item()
-            accum['loss_mse_pad'] += outputs["loss_mse_pad"].item()
-            accum['audio_norm'] += outputs["audio_norm"].item()
-            accum['text_norm'] += outputs["text_norm"].item()
-            # accum['n_pads'] += (target_ids == self.tokenizer.pad_token_id).sum().item()
-            # accum['n_samples'] += target_ids.size(0)
+            accum['loss'] += outputs["loss"]
+            accum['loss_cos'] += outputs["loss_cos"]
+            accum['loss_ce'] += outputs["loss_ce"]
+            accum['loss_scale'] += outputs["loss_scale"]
+            accum['loss_mse_txt'] += outputs["loss_mse_txt"]
+            accum['loss_mse_pad'] += outputs["loss_mse_pad"]
+            accum['audio_norm'] += outputs["audio_norm"]
+            accum['text_norm'] += outputs["text_norm"]
             accum['n_batchs'] += 1
 
 
