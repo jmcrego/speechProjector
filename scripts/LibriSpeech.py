@@ -68,10 +68,10 @@ def main():
                         n_out += 1
                         t_out += d
 
-            h = t_out // 3600
-            m = (t_out % 3600) // 60
+            h = int(t_out // 3600)
+            m = int((t_out % 3600) // 60)
             s = t_out % 60
-            print(f"Created {n_out} out of {n_in} audio segments ({100*n_out/n_in:.2f}%). Duration is {h}:{m}:{s:05.2f} ({t_out/n_out:.1f} secs/file)")
+            print(f"Created {n_out} out of {n_in} audio segments ({100*n_out/n_in:.2f}%). Duration is {h:02d}:{m:02d}:{s:05.2f} ({t_out/n_out:.1f} secs/file)")
 
 
 if __name__ == "__main__":
