@@ -8,70 +8,79 @@ if len(sys.argv) < 2:
     sys.exit(1)
 
 # ---- Path to your log file ----
-log_file = sys.argv[1]
-output_file = log_file + ".png"
+log_path = sys.argv[1]
+output_path = log_path + ".png"
 
-steps = []
-loss = []
-loss_cos = []
-loss_mse_txt = []
-audio_norm = []
-text_norm = []
-grad_norm = []
-lr_proj = []
-
-with open(log_file, "r") as f:
+# ---- Load JSONL ----
+records = []
+with open(log_path, "r") as f:
     for line in f:
-        data = json.loads(line)
-        if data["split"] != "train":
-            continue
+        obj = json.loads(line)
+        if "split" in obj:  # skip config line
+            records.append(obj)
 
-        steps.append(data["step"])
-        loss.append(data["loss"])
-        loss_cos.append(data["loss_cos"])
-        loss_mse_txt.append(data["loss_mse_txt"])
-        audio_norm.append(data["audio_norm"])
-        text_norm.append(data["text_norm"])
-        grad_norm.append(data["proj_grad_norm"])
-        lr_proj.append(data["lr_proj"])
+df = pd.DataFrame(records)
 
-fig, axs = plt.subplots(2, 2, figsize=(14, 10))
+train_df = df[df["split"] == "train"].copy()
+eval_df  = df[df["split"] == "eval"].copy()
 
-# -----------------------
+# ---- Create figure with 4 subplots ----
+fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+
 # 1) Total Loss
-# -----------------------
-axs[0, 0].plot(steps, loss)
-axs[0, 0].set_title("Total Loss")
-axs[0, 0].set_xlabel("Step")
+ax = axes[0, 0]
+ax.plot(train_df["step"], train_df["loss"], label="Train")
+ax.plot(eval_df["step"], eval_df["loss"], label="Eval")
+ax.set_title("Total Loss")
+ax.set_xlabel("Step")
+ax.set_ylabel("Loss")
+ax.legend()
 
-# -----------------------
-# 2) Cosine + MSE
-# -----------------------
-axs[0, 1].plot(steps, loss_cos)
-axs[0, 1].plot(steps, loss_mse_txt)
-axs[0, 1].set_title("Cosine & MSE (text)")
-axs[0, 1].set_xlabel("Step")
+# 2) Cosine Loss
+ax = axes[0, 1]
+ax.plot(train_df["step"], train_df["loss_cos"], label="Train")
+ax.plot(eval_df["step"], eval_df["loss_cos"], label="Eval")
+ax.set_title("Cosine Loss")
+ax.set_xlabel("Step")
+ax.set_ylabel("Loss")
+ax.legend()
 
-# -----------------------
-# 3) Embedding Norms
-# -----------------------
-axs[1, 0].plot(steps, audio_norm)
-axs[1, 0].plot(steps, text_norm)
-axs[1, 0].set_title("Embedding Norms")
-axs[1, 0].set_xlabel("Step")
+# 3) MSE Losses
+ax = axes[1, 0]
+ax.plot(train_df["step"], train_df["loss_mse_txt"], label="Train MSE txt")
+ax.plot(eval_df["step"], eval_df["loss_mse_txt"], label="Eval MSE txt")
+ax.plot(train_df["step"], train_df["loss_mse_pad"], linestyle="--", label="Train MSE pad")
+ax.plot(eval_df["step"], eval_df["loss_mse_pad"], linestyle="--", label="Eval MSE pad")
+ax.set_title("MSE Loss")
+ax.set_xlabel("Step")
+ax.set_ylabel("MSE")
+ax.legend()
 
-# -----------------------
-# 4) Grad Norm + Learning Rate
-# -----------------------
-ax1 = axs[1, 1]
-ax1.plot(steps, grad_norm)
-ax1.set_title("Projector Grad Norm & LR")
-ax1.set_xlabel("Step")
-ax1.set_ylabel("Grad Norm")
+# 4) Audio Norm + Learning Rate
+ax = axes[1, 1]
 
-ax2 = ax1.twinx()
-ax2.plot(steps, lr_proj)
+# Audio norm (left axis)
+ax.plot(train_df["step"], train_df["audio_norm"], label="Train Audio Norm")
+ax.plot(eval_df["step"], eval_df["audio_norm"], label="Eval Audio Norm")
+ax.set_title("Audio Norm & Learning Rate")
+ax.set_xlabel("Step")
+ax.set_ylabel("Audio Norm")
+
+# Learning rate (right axis)
+ax2 = ax.twinx()
+if "lr_proj" in train_df.columns:
+    ax2.plot(train_df["step"], train_df["lr_proj"], linestyle="--", label="Train LR")
+if "lr_proj" in eval_df.columns:
+    ax2.plot(eval_df["step"], eval_df["lr_proj"], linestyle="--", label="Eval LR")
 ax2.set_ylabel("Learning Rate")
 
+# Combine legends from both axes
+lines, labels = ax.get_legend_handles_labels()
+lines2, labels2 = ax2.get_legend_handles_labels()
+ax.legend(lines + lines2, labels + labels2)
+
 plt.tight_layout()
-plt.savefig(output_file, dpi=300)
+plt.savefig(output_path, dpi=300)
+plt.close()
+
+print(f"Saved plot to {output_path}")
