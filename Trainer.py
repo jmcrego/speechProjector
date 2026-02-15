@@ -85,29 +85,33 @@ class Trainer:
         logger.info(f"Initialized Sampler and DataLoader for eval with batch_size={batch_size} with {len(self.eval_dataset)} samples")
 
         # -----------------------
-        # Optimizer & Scheduler
+        # Optimizer & Scheduler & step
         # -----------------------
         lr_proj= config['optim']['lr_proj']
         self.optimizer = torch.optim.AdamW([{"params": self.model.projector.parameters(), "lr": lr_proj}])
         logger.info(f"Initialized AdamW optimizer with lr_proj={lr_proj}")
 
+        warmup_steps = config['optim']['warmup_steps']
+        self.scheduler = get_cosine_schedule_with_warmup(self.optimizer, num_warmup_steps=int(warmup_steps), num_training_steps=self.max_steps)
+        logger.info(f"Initialized Cosine scheduler with warmup. {self.max_steps} steps, ({warmup_steps}) warmup steps)")
+
+        self.step = 0
+
         if resume:
             state = torch.load(config['projector']['path'].replace(".proj.pt",".optim.pt"))
-            self.optimizer.load_state_dict(state["optimizer_state_dict"])
-            self.step = state["step"]
-            logger.info(f"Resume training from {config}, loaded optimizer/step={self.step}")
-        else:
-            self.step = 0
+            if "optimizer_state_dict" in state:
+                self.optimizer.load_state_dict(state["optimizer_state_dict"])
+            if "scheduler_state_dict" in state:
+                self.scheduler.load_state_dict(state["scheduler_state_dict"])
+            if "step" in state:
+                self.step = state["step"]
+            logger.info(f"Resume training from {config}, loaded optimizer/scheduler/step={self.step}")
 
         self.batch = 0 # microbatch step
         self.epoch = 0 # number of epochs completed
         self.sample = 0 # number of samples processed
         self.start_time = datetime.now()
 
-        warmup_steps = config['optim']['warmup_steps']
-        # cosine scheduler with warmup
-        self.scheduler = get_cosine_schedule_with_warmup(self.optimizer, num_warmup_steps=int(warmup_steps), num_training_steps=self.max_steps)
-        logger.info(f"Initialized Cosine scheduler with warmup. {self.max_steps} steps, ({warmup_steps}) warmup steps)")
 
 
     # -----------------------------
@@ -133,7 +137,11 @@ class Trainer:
         self.model.save(ckpt_path)
 
         # save optimizer
-        state = {"optimizer_state_dict": self.optimizer.state_dict(), "step": self.step}
+        state = {
+            "optimizer_state_dict": self.optimizer.state_dict(), 
+            "scheduler_state_dict": self.scheduler.state_dict(),
+            "step": self.step
+        }
         torch.save(state, f"{ckpt_path}.optim.pt")
         logger.info(f"Saved optimizer to {ckpt_path}.optim.pt")
 
