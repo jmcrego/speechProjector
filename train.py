@@ -32,7 +32,7 @@ if __name__ == "__main__":
     parser.add_argument("--lr_proj", type=float, default=1e-4, help="Learning rate for projector (the only part we train)")
     parser.add_argument("--max_steps", type=int, default=100000, help="Maximum number of training steps (must be >0 for scheduler)")
     parser.add_argument("--max_epochs", type=int, default=0, help="Maximum number of training epochs (0 for no limit)")
-    parser.add_argument("--warmup_steps", type=int, default=5000, help="Number of warmup steps for learning rate scheduler (should be ~10% of total steps)")
+    parser.add_argument("--warmup_steps", type=int, default=1000, help="Number of warmup steps for learning rate scheduler (should be ~10% of total steps)")
     parser.add_argument("--weight_mse", type=float, default=5.0, help="MSE loss = weight_MSE MSE_txt + (10 - weight_MSE) MSE_pad")
     parser.add_argument("--weight_cos", type=float, default=100.0, help="Weight of cosine loss (0 to disable it)")
     parser.add_argument("--weight_scale", type=float, default=0., help="Weight of scale loss (0 to disable it)")
