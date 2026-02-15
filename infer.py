@@ -76,7 +76,7 @@ if __name__ == "__main__":
 
     prompt = (f'<|im_start|>user'
         f'Translate to {args.tlang}:'
-        'a group of people are gathered in a public area'
+        'a group of people are gathered in a public area</s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s>'
         '<|im_end|>'
         '<|im_start|>assistant'
     )
