@@ -101,10 +101,20 @@ class Trainer:
             state = torch.load(config['projector']['path'].replace(".proj.pt",".optim.pt"))
             if "optimizer_state_dict" in state:
                 self.optimizer.load_state_dict(state["optimizer_state_dict"])
-            if "scheduler_state_dict" in state:
-                self.scheduler.load_state_dict(state["scheduler_state_dict"])
+            # if "scheduler_state_dict" in state:
+            #     self.scheduler.load_state_dict(state["scheduler_state_dict"])
             if "step" in state:
                 self.step = state["step"]
+
+            if self.step > 0:
+                # Recreate scheduler with correct number of total steps and warmup steps, and set to the correct step
+                self.scheduler = get_cosine_schedule_with_warmup(
+                    self.optimizer,
+                    num_warmup_steps=warmup_steps,
+                    num_training_steps=self.max_steps,  # may be a new value if we changed max_steps in the config
+                    last_epoch=self.step - 1 # indicate to scheduler that self.step steps have already been taken (so it can set the correct learning rate)
+                )
+
             logger.info(f"Resume training from {config}, loaded optimizer/scheduler/step={self.step}")
 
         self.batch = 0 # microbatch step
@@ -139,7 +149,7 @@ class Trainer:
         # save optimizer
         state = {
             "optimizer_state_dict": self.optimizer.state_dict(), 
-            "scheduler_state_dict": self.scheduler.state_dict(),
+            # "scheduler_state_dict": self.scheduler.state_dict(),
             "step": self.step
         }
         torch.save(state, f"{ckpt_path}.optim.pt")
