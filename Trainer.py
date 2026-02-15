@@ -229,11 +229,12 @@ class Trainer:
 
                     optimizer.zero_grad() # reset gradients
 
+                    # Logging (log_every must be multiple of accum_steps)
+                    self.step += 1 
+
                     # Scheduler step
                     self.scheduler.step() # update learning rate
 
-                    # Logging (log_every must be multiple of accum_steps)
-                    self.step += 1 
                     if self.step % self.log_every == 0:
                         self.log_fn(accum, is_eval=False)
                         accum = defaultdict(float)
