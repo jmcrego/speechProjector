@@ -198,7 +198,24 @@ class AudioLLM(torch.nn.Module):
         Returns:
             generated_texts (List[str]): list of generated texts
         """
-        prompt_ids = self.tokenizer(prompt, return_tensors="pt").input_ids.to(self.projector.linear.weight.device) # move to same device as projector for generation
+        if '<extra_id_0>' not in prompt:        
+            prompt_ids = self.tokenizer(prompt, return_tensors="pt").input_ids.to(self.projector.linear.weight.device) # move to same device as projector for generation
+            outputs = self.llm.generate(
+                input_ids=prompt_ids,
+                max_new_tokens=max_new_tokens,
+                do_sample=(temperature > 0),
+                temperature=temperature if temperature > 0 else None,
+                top_p=top_p if temperature > 0 else None,
+                no_repeat_ngram_size = no_repeat_ngram_size,
+                repetition_penalty = repetition_penalty,
+                pad_token_id = self.tokenizer.pad_token_id,
+                eos_token_id = self.tokenizer.eos_token_id,
+                use_cache=True,
+                return_dict_in_generate=True,
+                output_scores=True,
+            )
+            return self.tokenizer.batch_decode(outputs.sequences, skip_special_tokens=False)
+
         formatted_batch = self.format_batch(audio_paths, prompt_ids)
 
         outputs = self.llm.generate(
