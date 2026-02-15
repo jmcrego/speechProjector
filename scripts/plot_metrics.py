@@ -70,8 +70,8 @@ ax.set_ylabel("Audio Norm")
 ax2 = ax.twinx()
 if "lr_proj" in train_df.columns:
     ax2.plot(train_df["step"], train_df["lr_proj"], linestyle="--", label="Train LR")
-if "lr_proj" in eval_df.columns:
-    ax2.plot(eval_df["step"], eval_df["lr_proj"], linestyle="--", label="Eval LR")
+# if "lr_proj" in eval_df.columns:
+#     ax2.plot(eval_df["step"], eval_df["lr_proj"], linestyle="--", label="Eval LR")
 ax2.set_ylabel("Learning Rate")
 
 # Combine legends from both axes
