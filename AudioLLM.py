@@ -200,6 +200,12 @@ class AudioLLM(torch.nn.Module):
         """
         if '<extra_id_0>' not in prompt:        
             prompt_ids = self.tokenizer(prompt, return_tensors="pt").input_ids.to(self.projector.linear.weight.device) # move to same device as projector for generation
+            #fill prompt_ids with </s> (padding token) up to obtain 100 tokens
+            if prompt_ids.size(1) < 100:
+                pad_length = 100 - prompt_ids.size(1)
+                pad_ids = torch.full((prompt_ids.size(0), pad_length), self.tokenizer.pad_token_id, device=prompt_ids.device, dtype=prompt_ids.dtype)
+                prompt_ids = torch.cat([prompt_ids, pad_ids], dim=1)
+
             outputs = self.llm.generate(
                 input_ids=prompt_ids,
                 max_new_tokens=max_new_tokens,
