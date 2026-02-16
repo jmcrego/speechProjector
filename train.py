@@ -30,9 +30,9 @@ if __name__ == "__main__":
     parser.add_argument("--eval", nargs="+", default=None, help="Evaluation samples.jsonl files")
     # opt pars
     parser.add_argument("--lr_proj", type=float, default=1e-4, help="Learning rate for projector (the only part we train)")
-    parser.add_argument("--max_steps", type=int, default=100000, help="Maximum number of training steps (must be >0 for scheduler)")
+    parser.add_argument("--warmup_steps", type=int, default=5000, help="Number of warmup steps for learning rate scheduler (should be ~10% of total steps)")
+    parser.add_argument("--max_steps", type=int, default=100000, help="Maximum number of training steps (0 for no limit)")
     parser.add_argument("--max_epochs", type=int, default=0, help="Maximum number of training epochs (0 for no limit)")
-    parser.add_argument("--warmup_steps", type=int, default=1000, help="Number of warmup steps for learning rate scheduler (should be ~10% of total steps)")
     parser.add_argument("--weight_mse", type=float, default=5.0, help="MSE loss = weight_MSE MSE_txt + (10 - weight_MSE) MSE_pad")
     parser.add_argument("--weight_cos", type=float, default=100.0, help="Weight of cosine loss (0 to disable it)")
     parser.add_argument("--weight_scale", type=float, default=0., help="Weight of scale loss (0 to disable it)")
@@ -50,6 +50,9 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true", help="Debug mode with more logging")
     args = parser.parse_args()
 
+    if args.max_steps == 0 and args.max_epochs == 0:
+        raise ValueError("At least one of max_steps or max_epochs must be > 0 to define a stopping criterion for training")
+
     # Create output directory if needed
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
     json_logger = JSONMetricsLogger(Path(args.output_dir) / "metrics.jsonl")
@@ -66,14 +69,14 @@ if __name__ == "__main__":
     with open(args.config, "r", encoding="utf-8") as file:
         config = json.load(file)
 
-    # pass weights via config file
-    config['optim']['lr_proj'] = args.lr_proj
-    config['optim']['warmup_steps'] = args.warmup_steps
-    config['optim']['weight_mse'] = args.weight_mse
-    config['optim']['weight_cos'] = args.weight_cos
-    config['optim']['weight_scale'] = args.weight_scale
-    config['optim']['weight_ce'] = args.weight_ce
-    config['optim']['temp_ce'] = args.temp_ce
+    # config['optim']['lr_proj'] = args.lr_proj
+    # config['optim']['warmup_steps'] = args.warmup_steps
+
+    # config['optim']['weight_mse'] = args.weight_mse
+    # config['optim']['weight_cos'] = args.weight_cos
+    # config['optim']['weight_scale'] = args.weight_scale
+    # config['optim']['weight_ce'] = args.weight_ce
+    # config['optim']['temp_ce'] = args.temp_ce
 
     logger.info("=" * 80)
     logger.info(f"Starting new run @ {datetime.now().isoformat(timespec='seconds')}")
@@ -87,19 +90,19 @@ if __name__ == "__main__":
 
     json_logger.log(
         type="run",
+        args=vars(args),
         config=config,
-        train=args.train,
-        eval=args.eval,
-        max_steps=args.max_steps,
-        max_epochs=args.max_epochs,
-        batch_size=args.batch_size,
-        accum_steps=args.accum_steps,
-        resume=args.resume,
-        output_dir=args.output_dir,
+        device=str(device),
+        dtype=str(dtype),
     )
 
     model = AudioLLM(
         config=config,
+        weight_mse=args.weight_mse,
+        weight_cos=args.weight_cos,
+        weight_scale=args.weight_scale,
+        weight_ce=args.weight_ce,
+        temp_ce=args.temp_ce,
         device=device,
         dtype=dtype 
     )
@@ -132,6 +135,8 @@ if __name__ == "__main__":
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         batch_size=args.batch_size,
+        lr_proj=args.lr_proj,
+        warmup_steps=args.warmup_steps,
         max_steps=args.max_steps,
         max_epochs=args.max_epochs,
         save_best_n=args.save_best_n,

@@ -15,7 +15,7 @@ class AudioLLM(torch.nn.Module):
     """
     Wrapper combining Embedder -> Projector -> LLM
     """
-    def __init__(self, config, device, dtype, is_infer=False):
+    def __init__(self, config, weight_mse, weight_cos, weight_scale, weight_ce, temp_ce, device, dtype, is_infer=False):
         super().__init__()
 
         audio_path = config['audio']['path'] #only to get embedding dim
@@ -75,11 +75,11 @@ class AudioLLM(torch.nn.Module):
         else:
             logger.info(f"LLM Embedder: {next(self.llm_embedder.parameters()).dtype} on {next(self.llm_embedder.parameters()).device}")
 
-        self.weight_mse = config['optim']['weight_mse']
-        self.weight_cos = config['optim']['weight_cos']
-        self.weight_scale = config['optim']['weight_scale']
-        self.weight_ce = config['optim']['weight_ce']
-        self.temp_ce = config['optim']['temp_ce']
+        self.weight_mse = weight_mse
+        self.weight_cos = weight_cos
+        self.weight_scale = weight_scale
+        self.weight_ce = weight_ce
+        self.temp_ce = temp_ce
         if not is_infer:
             self.summary()
 
@@ -127,6 +127,10 @@ class AudioLLM(torch.nn.Module):
         assert D == self.llm_embedding_dim, f"Expected D={self.llm_embedding_dim}, got {D}"
         text_norm = text_embs.norm(dim=-1).mean()
 
+        # --------------
+        # --- losses ---
+        # --------------
+
         # ----- MSE: absolute alignment (scale + direction) -----
         loss_mse_txt = F.mse_loss(text_embs[txt_mask], proj_embs[txt_mask], reduction="mean")
         loss_mse_pad = F.mse_loss(text_embs[pad_mask], proj_embs[pad_mask], reduction="mean")
@@ -136,20 +140,20 @@ class AudioLLM(torch.nn.Module):
             cos = F.cosine_similarity(text_embs[txt_mask], proj_embs[txt_mask], dim=-1) # same vectors → cos=1, orthogonal → cos=0, opposite → cos=-1
             loss_cos = 1.0 - cos.mean()
         else:
-            loss_cos = 0.0
+            loss_cos = torch.tensor(0.0, device=proj_embs.device)
 
         # ----- scale loss: handles scale differences -----
         if self.weight_scale > 0:
             loss_scale = ((proj_embs.norm(dim=-1) - text_embs.norm(dim=-1))**2)[txt_mask].mean()
         else:
-            loss_scale = 0.0
+            loss_scale = torch.tensor(0.0, device=proj_embs.device)
 
         # --- Cross-entropy loss: handles token-level prediction ---
         if self.weight_ce > 0:
             logits = torch.matmul(proj_embs[txt_mask], self.llm_embedder.weight.t()) / self.temp_ce # logits: [N_txt, D] x [D, V] -> [N_txt, V]
             loss_ce = F.cross_entropy(logits, target_ids[txt_mask], reduction="mean")
         else:
-            loss_ce = 0.0
+            loss_ce = torch.tensor(0.0, device=proj_embs.device)
 
         # ----- Final loss -----
         loss = (

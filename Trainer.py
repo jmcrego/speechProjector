@@ -33,6 +33,8 @@ class Trainer:
         train_dataset,
         eval_dataset=None,
         batch_size=4,
+        lr_proj=1e-4,
+        warmup_steps=1000,
         max_steps=10000,
         max_epochs=10,
         save_best_n=3,
@@ -56,7 +58,6 @@ class Trainer:
         self.eval_dataset = eval_dataset
         self.batch_size = batch_size
         self.max_steps = max_steps
-        self.max_epochs = max_epochs
         self.save_best_n = save_best_n
         self.eval_every = eval_every
         self.log_every = log_every
@@ -80,6 +81,12 @@ class Trainer:
         self.train_loader = DataLoader(train_dataset, batch_sampler=self.train_sampler, collate_fn=collate_fn)
         logger.info(f"Initialized Sampler and DataLoader for train with batch_size={batch_size} with {len(self.train_dataset)} samples")
 
+        if max_epochs > 0 and max_steps == 0:
+            num_batches_per_epoch = len(self.train_loader) 
+            num_steps_per_epoch = num_batches_per_epoch // accum_steps
+            self.max_steps = max_epochs * num_steps_per_epoch
+            logger.info(f"Calculated max_steps={self.max_steps} based on max_epochs={max_epochs} with accum_steps={accum_steps}: num_batches_per_epoch={num_batches_per_epoch}, num_steps_per_epoch={num_steps_per_epoch}")
+
         self.eval_sampler = BatchedBucketSampler(eval_dataset, batch_size=batch_size, shuffle=False)
         self.eval_loader = DataLoader(eval_dataset, batch_sampler=self.eval_sampler, collate_fn=collate_fn)
         logger.info(f"Initialized Sampler and DataLoader for eval with batch_size={batch_size} with {len(self.eval_dataset)} samples")
@@ -87,12 +94,12 @@ class Trainer:
         # -----------------------
         # Optimizer & Scheduler & step
         # -----------------------
-        lr_proj= config['optim']['lr_proj']
+        # lr_proj= config['optim']['lr_proj']
         self.optimizer = torch.optim.AdamW([{"params": self.model.projector.parameters(), "lr": lr_proj}])
         logger.info(f"Initialized AdamW optimizer with lr_proj={lr_proj}")
 
-        warmup_steps = config['optim']['warmup_steps']
-        self.scheduler = get_cosine_schedule_with_warmup(self.optimizer, num_warmup_steps=int(warmup_steps), num_training_steps=self.max_steps)
+        # warmup_steps = config['optim']['warmup_steps']
+        self.scheduler = get_cosine_schedule_with_warmup(self.optimizer, num_warmup_steps=warmup_steps, num_training_steps=self.max_steps)
         logger.info(f"Initialized Cosine scheduler with warmup. {self.max_steps} steps, ({warmup_steps}) warmup steps)")
 
         self.step = 0
@@ -101,10 +108,12 @@ class Trainer:
             state = torch.load(config['projector']['path'].replace(".proj.pt",".optim.pt"))
             if "optimizer_state_dict" in state:
                 self.optimizer.load_state_dict(state["optimizer_state_dict"])
-            # if "scheduler_state_dict" in state:
-            #     self.scheduler.load_state_dict(state["scheduler_state_dict"])
+            else:
+                logger.warning(f"No optimizer state found in {config['projector']['path'].replace('.proj.pt','.optim.pt')}, cannot resume optimizer")
             if "step" in state:
                 self.step = state["step"]
+            else:
+                logger.warning(f"No step found in {config['projector']['path'].replace('.proj.pt','.optim.pt')}, cannot resume step count")
 
             if self.step > 0:
                 # Recreate scheduler with correct number of total steps and warmup steps, and set to the correct step
@@ -176,9 +185,6 @@ class Trainer:
 
         accum = defaultdict(float)
 
-        # total_pads = 0
-        # total_samples = 0
-
         scaler = torch.amp.GradScaler()  # initialize GradScaler
 
         while self.max_steps and self.step < self.max_steps:
@@ -192,9 +198,6 @@ class Trainer:
 
                 self.batch += 1
                 self.sample += batch["target_ids"].size(0)
-
-                # total_pads += (target_ids == self.tokenizer.pad_token_id).sum().item() # Number of pad tokens in the batch (for logging pad)
-                # total_samples += batch["target_ids"].size(0) # Number of samples (for logging pad)
 
                 # Forward pass
                 # this with disables automatic mixed precision for everything inside that context.
@@ -262,14 +265,6 @@ class Trainer:
                               f"{self.batch} batches, "
                               f"{self.sample/len(self.train_dataset):.3f} epochs.")
                         break
-
-            if self.max_epochs and self.epoch >= self.max_epochs:
-                logger.info(f"Reached max epochs {self.max_epochs}, stopping training after "
-                      f"{self.sample} samples, "
-                      f"{self.step} steps, "
-                      f"{self.batch} batches, "
-                      f"{self.sample/len(self.train_dataset):.3f} epochs.")
-                break
 
         logger.info("End training")
 
@@ -339,9 +334,8 @@ class Trainer:
 
         log_str =  f"{'VAL ' if is_eval else 'TRN'} | "
         log_str += f"step={self.step:0>6d}/{self.max_steps} | "
-        # log_str += f"epoch={self.sample/len(self.train_dataset):.3f}/{self.max_epochs} | "
         log_str += f"epoch={self.sample/len(self.train_dataset):.3f} | "
-        log_str += f"loss={loss:.4f} | "
+        log_str += f"ℒ={loss:.4f} | "
         log_str += f"ℒ_cos={loss_cos:.4f} | " if loss_cos is not None else ""
         log_str += f"ℒ_ce={loss_ce:.4f} | " if loss_ce is not None else ""
         log_str += f"ℒ_scale={loss_scale:.4f} | " if loss_scale is not None else ""
