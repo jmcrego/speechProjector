@@ -208,11 +208,14 @@ class Trainer:
                     loss = raw_loss / self.accum_steps                    
 
                     accum['loss'] += raw_loss.item()
-                    accum['loss_cos'] += outputs["loss_cos"]
-                    accum['loss_ce'] += outputs["loss_ce"]
-                    accum['loss_scale'] += outputs["loss_scale"]
                     accum['loss_mse_txt'] += outputs["loss_mse_txt"]
                     accum['loss_mse_pad'] += outputs["loss_mse_pad"]
+                    if outputs.get("loss_cos") is not None:
+                        accum['loss_cos'] += outputs["loss_cos"]
+                    if outputs.get("loss_ce") is not None:
+                        accum['loss_ce'] += outputs["loss_ce"]
+                    if outputs.get("loss_scale") is not None:
+                        accum['loss_scale'] += outputs["loss_scale"]
                     accum['audio_norm'] += outputs["audio_norm"]
                     accum['text_norm'] += outputs["text_norm"]
                     accum['n_batchs'] += 1
@@ -295,11 +298,16 @@ class Trainer:
                 outputs = self.model(target_ids, pt_paths, offsets) 
 
             accum['loss'] += outputs["loss"].item()
-            accum['loss_cos'] += outputs["loss_cos"]
-            accum['loss_ce'] += outputs["loss_ce"]
-            accum['loss_scale'] += outputs["loss_scale"]
-            accum['loss_mse_txt'] += outputs["loss_mse_txt"]
-            accum['loss_mse_pad'] += outputs["loss_mse_pad"]
+            if outputs.get("loss_mse_txt") is not None:
+                accum['loss_mse_txt'] += outputs["loss_mse_txt"]
+            if outputs.get("loss_mse_pad") is not None:
+                accum['loss_mse_pad'] += outputs["loss_mse_pad"]
+            if outputs.get("loss_cos") is not None:
+                accum['loss_cos'] += outputs["loss_cos"]
+            if outputs.get("loss_ce") is not None:
+                accum['loss_ce'] += outputs["loss_ce"]
+            if outputs.get("loss_scale") is not None:
+                accum['loss_scale'] += outputs["loss_scale"]
             accum['audio_norm'] += outputs["audio_norm"]
             accum['text_norm'] += outputs["text_norm"]
             accum['n_batchs'] += 1
@@ -322,25 +330,26 @@ class Trainer:
         s = int(elapsed % 60)
 
         loss = accum['loss'] / max(1, accum['n_batchs'])
+        loss_mse_txt = accum['loss_mse_txt'] / max(1, accum['n_batchs']) if accum.get('loss_mse_txt') is not None else None
+        loss_mse_pad = accum['loss_mse_pad'] / max(1, accum['n_batchs']) if accum.get('loss_mse_pad') is not None else None
+        loss_cos = accum['loss_cos'] / max(1, accum['n_batchs']) if accum.get('loss_cos') is not None else None
+        loss_ce = accum['loss_ce'] / max(1, accum['n_batchs']) if accum.get('loss_ce') is not None else None
+        loss_scale = accum['loss_scale'] / max(1, accum['n_batchs']) if accum.get('loss_scale') is not None else None
+
         audio_norm = accum['audio_norm'] / max(1, accum['n_batchs'])
         text_norm = accum['text_norm'] / max(1, accum['n_batchs'])
-        loss_cos = accum['loss_cos'] / max(1, accum['n_batchs'])
-        loss_ce = accum['loss_ce'] / max(1, accum['n_batchs'])
-        loss_scale = accum['loss_scale'] / max(1, accum['n_batchs'])
-        loss_mse_txt = accum['loss_mse_txt'] / max(1, accum['n_batchs'])
-        loss_mse_pad = accum['loss_mse_pad'] / max(1, accum['n_batchs'])
         scale_val = accum.get('scale', None)
         proj_grad_norm = accum.get('proj_grad_norm', None)
 
         log_str =  f"{'VAL ' if is_eval else 'TRN'} | "
         log_str += f"step={self.step:0>7d}/{self.max_steps} | "
         log_str += f"epoch={self.sample/len(self.train_dataset):.2f} | "
-        log_str += f"ℒ={loss:.4f} | "
-        log_str += f"ℒ_cos={loss_cos:.4f} | " if loss_cos is not None else ""
-        log_str += f"ℒ_mse_txt={loss_mse_txt:.4f} | " if loss_mse_txt is not None else ""
-        log_str += f"ℒ_mse_pad={loss_mse_pad:.4f} | " if loss_mse_pad is not None else ""
-        log_str += f"ℒ_ce={loss_ce:.4f} | " if loss_ce is not None else ""
-        log_str += f"ℒ_scale={loss_scale:.4f} | " if loss_scale is not None else ""
+        log_str += f"ℒ={loss:.5f} | "
+        log_str += f"ℒ_mse_txt={loss_mse_txt:.5f} | " if loss_mse_txt is not None else ""
+        log_str += f"ℒ_mse_pad={loss_mse_pad:.5f} | " if loss_mse_pad is not None else ""
+        log_str += f"ℒ_cos={loss_cos:.5f} | " if loss_cos is not None else ""
+        log_str += f"ℒ_ce={loss_ce:.5f} | " if loss_ce is not None else ""
+        log_str += f"ℒ_scale={loss_scale:.5f} | " if loss_scale is not None else ""
 
         log_str += f"lr_proj={self.optimizer.param_groups[0]['lr']:.3e} | "
 

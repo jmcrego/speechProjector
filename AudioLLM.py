@@ -140,28 +140,26 @@ class AudioLLM(torch.nn.Module):
             cos = F.cosine_similarity(text_embs[txt_mask], proj_embs[txt_mask], dim=-1) # same vectors → cos=1, orthogonal → cos=0, opposite → cos=-1
             loss_cos = 1.0 - cos.mean()
         else:
-            loss_cos = torch.tensor(0.0, device=proj_embs.device)
+            loss_cos = None
 
         # ----- scale loss: handles scale differences -----
         if self.weight_scale > 0:
             loss_scale = ((proj_embs.norm(dim=-1) - text_embs.norm(dim=-1))**2)[txt_mask].mean()
         else:
-            loss_scale = torch.tensor(0.0, device=proj_embs.device)
+            loss_scale = None
 
         # --- Cross-entropy loss: handles token-level prediction ---
         if self.weight_ce > 0:
             logits = torch.matmul(proj_embs[txt_mask], self.llm_embedder.weight.t()) / self.temp_ce # logits: [N_txt, D] x [D, V] -> [N_txt, V]
             loss_ce = F.cross_entropy(logits, target_ids[txt_mask], reduction="mean")
         else:
-            loss_ce = torch.tensor(0.0, device=proj_embs.device)
+            loss_ce = None
 
         # ----- Final loss -----
-        loss = (
-            self.weight_mse * loss_mse_txt + (10 - self.weight_mse) * loss_mse_pad
-            + self.weight_cos * loss_cos
-            + self.weight_scale * loss_scale
-            + self.weight_ce * loss_ce
-        )
+        loss = self.weight_mse * loss_mse_txt + (10 - self.weight_mse) * loss_mse_pad
+        loss += self.weight_cos * loss_cos if loss_cos is not None else 0.0
+        loss += self.weight_scale * loss_scale if loss_scale is not None else 0.0
+        loss += self.weight_ce * loss_ce if loss_ce is not None else 0.0
 
         # ----- Logging info -----
         audio_norm = proj_embs.norm(dim=-1).mean()
@@ -169,13 +167,13 @@ class AudioLLM(torch.nn.Module):
 
         return {
             "loss": loss,
-            "loss_mse_txt": loss_mse_txt.item() if isinstance(loss_mse_txt, torch.Tensor) else loss_mse_txt,
-            "loss_mse_pad": loss_mse_pad.item() if isinstance(loss_mse_pad, torch.Tensor) else loss_mse_pad,
-            "loss_cos": loss_cos.item() if isinstance(loss_cos, torch.Tensor) else loss_cos,
-            "loss_scale": loss_scale.item() if isinstance(loss_scale, torch.Tensor) else loss_scale,
-            "loss_ce": loss_ce.item() if isinstance(loss_ce, torch.Tensor) else loss_ce,
-            "audio_norm": audio_norm.item() if isinstance(audio_norm, torch.Tensor) else audio_norm,
-            "text_norm": text_norm.item() if isinstance(text_norm, torch.Tensor) else text_norm,
+            "loss_mse_txt": loss_mse_txt.item(),
+            "loss_mse_pad": loss_mse_pad.item(),
+            "loss_cos": loss_cos.item() if loss_cos is not None else None,
+            "loss_scale": loss_scale.item() if loss_scale is not None else None,
+            "loss_ce": loss_ce.item() if loss_ce is not None else None,
+            "audio_norm": audio_norm.item(),
+            "text_norm": text_norm.item(),
         }
 
     def generate(
