@@ -39,7 +39,7 @@ class Trainer:
         max_epochs=10,
         save_best_n=3,
         eval_every=1000,
-        log_every=50,
+        log_every=100,
         accum_steps=1,
         output_dir="./output_dir",
         json_logger=None,
@@ -79,7 +79,7 @@ class Trainer:
         
         self.train_sampler = BatchedBucketSampler(train_dataset, batch_size=batch_size, shuffle=True)
         self.train_loader = DataLoader(train_dataset, batch_sampler=self.train_sampler, collate_fn=collate_fn)
-        logger.info(f"Initialized Sampler and DataLoader for train with batch_size={batch_size} with {len(self.train_dataset)} samples")
+        logger.info(f"Initialized Sampler and DataLoader for train with batch_size={batch_size} with {len(self.train_dataset)} samples, {len(self.train_loader)} batches")
 
         if max_epochs > 0 and max_steps == 0:
             num_batches_per_epoch = len(self.train_loader) 
@@ -127,7 +127,7 @@ class Trainer:
             logger.info(f"Resume training from {config}, loaded optimizer/scheduler/step={self.step}")
 
         self.batch = 0 # microbatch step
-        self.epoch = 0 # number of epochs completed
+        # self.epoch = 0 # number of epochs completed
         self.sample = 0 # number of samples processed
         self.start_time = datetime.now()
 
@@ -188,7 +188,7 @@ class Trainer:
         scaler = torch.amp.GradScaler()  # initialize GradScaler
 
         while self.max_steps and self.step < self.max_steps:
-            self.epoch += 1
+            # self.epoch += 1
 
             for batch in self.train_loader:
                 pt_paths = batch["pt_paths"] # list of paths to .pt files containing audio embeddings (tensor of shape [T', D])
@@ -333,14 +333,15 @@ class Trainer:
         proj_grad_norm = accum.get('proj_grad_norm', None)
 
         log_str =  f"{'VAL ' if is_eval else 'TRN'} | "
-        log_str += f"step={self.step:0>6d}/{self.max_steps} | "
-        log_str += f"epoch={self.sample/len(self.train_dataset):.3f} | "
+        log_str += f"step={self.step:0>7d}/{self.max_steps} | "
+        log_str += f"epoch={self.sample/len(self.train_dataset):.2f} | "
         log_str += f"ℒ={loss:.4f} | "
         log_str += f"ℒ_cos={loss_cos:.4f} | " if loss_cos is not None else ""
-        log_str += f"ℒ_ce={loss_ce:.4f} | " if loss_ce is not None else ""
-        log_str += f"ℒ_scale={loss_scale:.4f} | " if loss_scale is not None else ""
         log_str += f"ℒ_mse_txt={loss_mse_txt:.4f} | " if loss_mse_txt is not None else ""
         log_str += f"ℒ_mse_pad={loss_mse_pad:.4f} | " if loss_mse_pad is not None else ""
+        log_str += f"ℒ_ce={loss_ce:.4f} | " if loss_ce is not None else ""
+        log_str += f"ℒ_scale={loss_scale:.4f} | " if loss_scale is not None else ""
+
         log_str += f"lr_proj={self.optimizer.param_groups[0]['lr']:.3e} | "
 
         if audio_norm is not None:
@@ -361,10 +362,10 @@ class Trainer:
                 step=self.step, 
                 loss=loss, 
                 loss_cos=loss_cos,
-                loss_ce=loss_ce,
-                loss_scale=loss_scale,
                 loss_mse_txt=loss_mse_txt,
                 loss_mse_pad=loss_mse_pad,
+                loss_ce=loss_ce,
+                loss_scale=loss_scale,
                 audio_norm=audio_norm, 
                 text_norm=text_norm,
                 lr_proj=self.optimizer.param_groups[0]['lr'],
