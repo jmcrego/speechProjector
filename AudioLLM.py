@@ -167,6 +167,39 @@ class AudioLLM(torch.nn.Module):
         dout['text_norm'] = text_embs.norm(dim=-1).mean().item()
         return dout
 
+    def generate_with_noise(
+            self,
+            target,
+            prompt,
+            max_new_tokens=256,
+            temperature=0.7,
+            top_p=0.95,
+            no_repeat_ngram_size = 0,
+            repetition_penalty = 1.1,            
+    ):
+        prompt_ids = self.tokenizer(prompt, return_tensors="pt").input_ids.to(self.projector.linear.weight.device) # move to same device as projector for generation
+        target_ids = self.tokenizer(target, return_tensors="pt").input_ids.to(self.projector.linear.weight.device) # move to same device as projector for generation
+        formatted_batch = self.format_batch(target_ids, prompt_ids)
+
+        outputs = self.llm.generate(
+            inputs_embeds=formatted_batch["inputs_embeds"],
+            attention_mask=formatted_batch["attention_mask"],
+            max_new_tokens=max_new_tokens,
+            do_sample=(temperature > 0),
+            temperature=temperature if temperature > 0 else None,
+            top_p=top_p if temperature > 0 else None,
+            no_repeat_ngram_size = no_repeat_ngram_size, 
+            repetition_penalty = repetition_penalty,
+            pad_token_id = self.tokenizer.pad_token_id,
+            eos_token_id = self.tokenizer.eos_token_id,
+            use_cache=True,
+            return_dict_in_generate=True,
+            output_scores=True,
+        )
+
+        return self.tokenizer.batch_decode(outputs.sequences, skip_special_tokens=False)
+
+
     def generate(
         self, 
         audio_paths, 
@@ -231,7 +264,7 @@ class AudioLLM(torch.nn.Module):
         return self.tokenizer.batch_decode(outputs.sequences, skip_special_tokens=False)
 
 
-    def format_batch(self, audio_paths, prompt_ids):
+    def format_batch(self, audio_paths, prompt_ids, noise_level=None):
         """
         Formats a batch by combining prompt, audio, and (optionally) target embeddings.
 
@@ -248,17 +281,34 @@ class AudioLLM(torch.nn.Module):
         llm_dtype = next(self.llm.parameters()).dtype
         B = prompt_ids.size(0)
 
-        # 1) Embed audio
-        with torch.no_grad():
-            audio_embs, _ = self.embedder(audio_paths)  # [B, T_audio, D_audio]
+        if noise_level is not None:
+            # audio_paths consist of target_ids 
+            # fill audio_paths with </s> (embedding) up to max_length=100
+            audio_embs = self.llm_embedder(torch.full((B, 100), self.tokenizer.eos_token_id, device=device, dtype=torch.long)) # [B, 100, D_llm]
 
-        audio_embs = audio_embs.to(device)
+            audio_embs = self.llm_embedder(audio_paths) # treat prompt as "audio" and get embeddings directly from LLM embedder
+            # fill up to max length  
 
-        # 2) Project audio embeddings
-        proj_embs, proj_mask = self.projector(audio_embs)      # [B, S_max, D_llm], [B, S_max]
-        proj_mask = proj_mask.bool()
-        B, S_max, D = proj_embs.shape
-        audio_lens = proj_mask.sum(dim=1)                      # [B]
+            noise = torch.randn_like(prompt_ids, dtype=torch.float) * noise_level
+            audio_embs = audio_embs + noise.long().to(audio_embs.device)
+
+            proj_embs, proj_mask = audio_embs, torch.ones(B, T_out, dtype=torch.bool, device=x.device) # [B, S_max, D_llm], [B, S_max]
+            proj_mask = proj_mask.bool()
+            B, S_max, D = proj_embs.shape
+            audio_lens = proj_mask.sum(dim=1)                      # [B]
+
+        else:
+            # 1) Embed audio
+            with torch.no_grad():
+                audio_embs, _ = self.embedder(audio_paths)  # [B, T_audio, D_audio]
+
+            audio_embs = audio_embs.to(device)
+
+            # 2) Project audio embeddings
+            proj_embs, proj_mask = self.projector(audio_embs)      # [B, S_max, D_llm], [B, S_max]
+            proj_mask = proj_mask.bool()
+            B, S_max, D = proj_embs.shape
+            audio_lens = proj_mask.sum(dim=1)                      # [B]
 
         # 3) Embed prompt
         prompt_ids = prompt_ids.to(device)

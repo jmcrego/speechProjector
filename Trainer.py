@@ -343,7 +343,7 @@ class Trainer:
         scale_val = accum.get('scale', None)
         proj_grad_norm = accum.get('proj_grad_norm', None)
 
-        log_str =  f"{'VAL ' if is_eval else 'TRN'} | "
+        log_str =  f"{'VAL' if is_eval else 'TRN'} | "
         log_str += f"step={self.step:0>7d}/{self.max_steps} | "
         log_str += f"epoch={self.sample/len(self.train_dataset):.2f} | "
         log_str += f"ℒ={loss:.5f} | "
