@@ -249,7 +249,7 @@ class Trainer:
                     self.scheduler.step() # update learning rate
 
                     if self.step % self.log_every == 0:
-                        self.log_fn(accum, is_eval=False)
+                        self.log_fn(accum)
                         accum = defaultdict(float)
 
                     # Evaluation + checkpoint
