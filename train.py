@@ -110,7 +110,7 @@ if __name__ == "__main__":
         jsonl_paths=args.eval,
         tokenizer=model.tokenizer,
         seq_len=model.projector.seq_len_out,
-        n_samples=200, #max number of eval samples (for quick eval during training, set to 0 for all)
+        # n_samples=200, #max number of eval samples (for quick eval during training, set to 0 for all)
     ) if args.eval is not None else None
 
 
