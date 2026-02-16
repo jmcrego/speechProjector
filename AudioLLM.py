@@ -15,7 +15,7 @@ class AudioLLM(torch.nn.Module):
     """
     Wrapper combining Embedder -> Projector -> LLM
     """
-    def __init__(self, config, weight_mse, weight_cos, weight_scale, weight_ce, temp_ce, device, dtype, is_infer=False):
+    def __init__(self, config, alpha, weight_mse, weight_cos, weight_scale, weight_ce, temp_ce, device, dtype, is_infer=False):
         super().__init__()
 
         audio_path = config['audio']['path'] #only to get embedding dim
@@ -75,6 +75,7 @@ class AudioLLM(torch.nn.Module):
         else:
             logger.info(f"LLM Embedder: {next(self.llm_embedder.parameters()).dtype} on {next(self.llm_embedder.parameters()).device}")
 
+        self.alpha = alpha
         self.weight_mse = weight_mse
         self.weight_cos = weight_cos
         self.weight_scale = weight_scale
@@ -130,51 +131,41 @@ class AudioLLM(torch.nn.Module):
         # --------------
         # --- losses ---
         # --------------
+        dout = {}
+        loss = torch.tensor(0.0, device=proj_embs.device)
 
         # ----- MSE: absolute alignment (scale + direction) -----
-        loss_mse_txt = F.mse_loss(text_embs[txt_mask], proj_embs[txt_mask], reduction="mean")
-        loss_mse_pad = F.mse_loss(text_embs[pad_mask], proj_embs[pad_mask], reduction="mean")
-
+        if self.weight_mse > 0:
+            loss_mse_txt = F.mse_loss(text_embs[txt_mask], proj_embs[txt_mask], reduction="mean")
+            loss_mse_pad = F.mse_loss(text_embs[pad_mask], proj_embs[pad_mask], reduction="mean")
+            loss_mse = self.alpha * loss_mse_txt + (1 - self.alpha) * loss_mse_pad
+            loss += self.weight_mse * loss_mse
+            dout['loss_mse_txt'] = loss_mse_txt.item()
+            dout['loss_mse_pad'] = loss_mse_pad.item()
         # ----- Cosine loss: directional alignment -----
         if self.weight_cos > 0:
             cos = F.cosine_similarity(text_embs[txt_mask], proj_embs[txt_mask], dim=-1) # same vectors → cos=1, orthogonal → cos=0, opposite → cos=-1
             loss_cos = 1.0 - cos.mean()
-        else:
-            loss_cos = None
+            loss += self.weight_cos * loss_cos
+            dout['loss_cos'] = loss_cos.item()
 
         # ----- scale loss: handles scale differences -----
         if self.weight_scale > 0:
             loss_scale = ((proj_embs.norm(dim=-1) - text_embs.norm(dim=-1))**2)[txt_mask].mean()
-        else:
-            loss_scale = None
+            loss += self.weight_scale * loss_scale
+            dout['loss_scale'] = loss_scale.item()
 
         # --- Cross-entropy loss: handles token-level prediction ---
         if self.weight_ce > 0:
             logits = torch.matmul(proj_embs[txt_mask], self.llm_embedder.weight.t()) / self.temp_ce # logits: [N_txt, D] x [D, V] -> [N_txt, V]
             loss_ce = F.cross_entropy(logits, target_ids[txt_mask], reduction="mean")
-        else:
-            loss_ce = None
+            loss += self.weight_ce * loss_ce
+            dout['loss_ce'] = loss_ce.item()
 
-        # ----- Final loss -----
-        loss = self.weight_mse * loss_mse_txt + (10 - self.weight_mse) * loss_mse_pad
-        loss += self.weight_cos * loss_cos if loss_cos is not None else 0.0
-        loss += self.weight_scale * loss_scale if loss_scale is not None else 0.0
-        loss += self.weight_ce * loss_ce if loss_ce is not None else 0.0
-
-        # ----- Logging info -----
-        audio_norm = proj_embs.norm(dim=-1).mean()
-        text_norm = text_embs.norm(dim=-1).mean()
-
-        return {
-            "loss": loss,
-            "loss_mse_txt": loss_mse_txt.item(),
-            "loss_mse_pad": loss_mse_pad.item(),
-            "loss_cos": loss_cos.item() if loss_cos is not None else None,
-            "loss_scale": loss_scale.item() if loss_scale is not None else None,
-            "loss_ce": loss_ce.item() if loss_ce is not None else None,
-            "audio_norm": audio_norm.item(),
-            "text_norm": text_norm.item(),
-        }
+        dout['loss'] = loss
+        dout['audio_norm'] = proj_embs.norm(dim=-1).mean().item()
+        dout['text_norm'] = text_embs.norm(dim=-1).mean().item()
+        return dout
 
     def generate(
         self, 

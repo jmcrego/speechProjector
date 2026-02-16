@@ -208,8 +208,10 @@ class Trainer:
                     loss = raw_loss / self.accum_steps                    
 
                     accum['loss'] += raw_loss.item()
-                    accum['loss_mse_txt'] += outputs["loss_mse_txt"]
-                    accum['loss_mse_pad'] += outputs["loss_mse_pad"]
+                    if outputs.get("loss_mse_txt") is not None:
+                        accum['loss_mse_txt'] += outputs["loss_mse_txt"]
+                    if outputs.get("loss_mse_pad") is not None:
+                        accum['loss_mse_pad'] += outputs["loss_mse_pad"]
                     if outputs.get("loss_cos") is not None:
                         accum['loss_cos'] += outputs["loss_cos"]
                     if outputs.get("loss_ce") is not None:
