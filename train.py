@@ -69,20 +69,9 @@ if __name__ == "__main__":
     with open(args.config, "r", encoding="utf-8") as file:
         config = json.load(file)
 
-    # config['optim']['lr_proj'] = args.lr_proj
-    # config['optim']['warmup_steps'] = args.warmup_steps
-
-    # config['optim']['weight_mse'] = args.weight_mse
-    # config['optim']['weight_cos'] = args.weight_cos
-    # config['optim']['weight_scale'] = args.weight_scale
-    # config['optim']['weight_ce'] = args.weight_ce
-    # config['optim']['temp_ce'] = args.temp_ce
-
-    logger.info("=" * 80)
     logger.info(f"Starting new run @ {datetime.now().isoformat(timespec='seconds')}")
-    logger.info(f"CONFIG FILE: {args.config}\n" + json.dumps(config, indent=2) + "\n")
-    logger.info("=" * 80)
-
+    logger.info(f"Args: {vars(args)}")
+    logger.info(f"Config: {json.dumps(config, indent=2)}")
     logger.info(f"CUDA available: {torch.cuda.is_available()}")
     logger.info(f"Device count: {torch.cuda.device_count()}")
     device, dtype = get_device_dtype()
