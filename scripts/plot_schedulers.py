@@ -14,7 +14,7 @@ def get_lrs(scheduler_name, model, base_lr, warmup_steps, total_steps):
 
     # Make cosine_with_restarts visibly different
     if scheduler_name == "cosine_with_restarts":
-        scheduler_kwargs["scheduler_specific_kwargs"] = {"num_cycles": 0.5}
+        scheduler_kwargs["scheduler_specific_kwargs"] = {"num_cycles": 5}
 
     scheduler = get_scheduler(
         name=scheduler_name,
