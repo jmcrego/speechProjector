@@ -41,7 +41,7 @@ if __name__ == "__main__":
     # train pars
     parser.add_argument("--batch_size", type=int, default=128, help="Number of samples in a batch")
     parser.add_argument("--accum_steps", type=int, default=1, help="Accumulate this many batchs before optimizing")
-    parser.add_argument("--eval_every", type=int, default=5000, help="Evaluation (and saving checkpoint) after this many optimization steps")
+    parser.add_argument("--eval_every", type=int, default=1000, help="Evaluation (and saving checkpoint) after this many optimization steps")
     parser.add_argument("--log_every", type=int, default=100, help="Logging after this many optimization steps")
     parser.add_argument("--save_best_n", type=int, default=5, help="Save top N checkpoints")
     parser.add_argument("--resume", action="store_true", help="Resume previous training")
