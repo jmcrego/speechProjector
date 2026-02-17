@@ -132,40 +132,40 @@ class AudioLLM(torch.nn.Module):
         # --- losses ---
         # --------------
         dout = {}
+        dout['audio_norm'] = audio_norm.item()
+        dout['text_norm'] = text_norm.item()
+
         loss = torch.tensor(0.0, device=proj_embs.device)
 
         # ----- MSE: absolute alignment (scale + direction) -----
+        loss_mse_txt = F.mse_loss(text_embs[txt_mask], proj_embs[txt_mask], reduction="mean")
+        loss_mse_pad = F.mse_loss(text_embs[pad_mask], proj_embs[pad_mask], reduction="mean")
+        dout['loss_mse_txt'] = loss_mse_txt.item()
+        dout['loss_mse_pad'] = loss_mse_pad.item()
         if self.weight_mse > 0:
-            loss_mse_txt = F.mse_loss(text_embs[txt_mask], proj_embs[txt_mask], reduction="mean")
-            loss_mse_pad = F.mse_loss(text_embs[pad_mask], proj_embs[pad_mask], reduction="mean")
             loss_mse = self.alpha * loss_mse_txt + (1 - self.alpha) * loss_mse_pad
             loss += self.weight_mse * loss_mse
-            dout['loss_mse_txt'] = loss_mse_txt.item()
-            dout['loss_mse_pad'] = loss_mse_pad.item()
 
         # ----- Cosine loss: directional alignment -----
+        loss_cos = 1.0 - F.cosine_similarity(text_embs[txt_mask], proj_embs[txt_mask], dim=-1).mean()
+        dout['loss_cos'] = loss_cos.item()
         if self.weight_cos > 0:
-            cos = F.cosine_similarity(text_embs[txt_mask], proj_embs[txt_mask], dim=-1) # same vectors → cos=1, orthogonal → cos=0, opposite → cos=-1
-            loss_cos = 1.0 - cos.mean()
             loss += self.weight_cos * loss_cos
-            dout['loss_cos'] = loss_cos.item()
 
         # ----- scale loss: handles scale differences -----
+        loss_scale = ((proj_embs.norm(dim=-1) - text_embs.norm(dim=-1))**2)[txt_mask].mean()
+        dout['loss_scale'] = loss_scale.item()
         if self.weight_scale > 0:
-            loss_scale = ((proj_embs.norm(dim=-1) - text_embs.norm(dim=-1))**2)[txt_mask].mean()
             loss += self.weight_scale * loss_scale
-            dout['loss_scale'] = loss_scale.item()
 
         # --- Cross-entropy loss: handles token-level prediction ---
+        logits = torch.matmul(proj_embs[txt_mask], self.llm_embedder.weight.t()) / self.temp_ce # logits: [N_txt, D] x [D, V] -> [N_txt, V]
+        loss_ce = F.cross_entropy(logits, target_ids[txt_mask], reduction="mean")
+        dout['loss_ce'] = loss_ce.item()
         if self.weight_ce > 0:
-            logits = torch.matmul(proj_embs[txt_mask], self.llm_embedder.weight.t()) / self.temp_ce # logits: [N_txt, D] x [D, V] -> [N_txt, V]
-            loss_ce = F.cross_entropy(logits, target_ids[txt_mask], reduction="mean")
             loss += self.weight_ce * loss_ce
-            dout['loss_ce'] = loss_ce.item()
 
         dout['loss'] = loss
-        dout['audio_norm'] = proj_embs.norm(dim=-1).mean().item()
-        dout['text_norm'] = text_embs.norm(dim=-1).mean().item()
         return dout
 
     # def generate_with_noise(
