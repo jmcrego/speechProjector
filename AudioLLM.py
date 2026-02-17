@@ -142,6 +142,7 @@ class AudioLLM(torch.nn.Module):
             loss += self.weight_mse * loss_mse
             dout['loss_mse_txt'] = loss_mse_txt.item()
             dout['loss_mse_pad'] = loss_mse_pad.item()
+
         # ----- Cosine loss: directional alignment -----
         if self.weight_cos > 0:
             cos = F.cosine_similarity(text_embs[txt_mask], proj_embs[txt_mask], dim=-1) # same vectors → cos=1, orthogonal → cos=0, opposite → cos=-1
@@ -167,35 +168,35 @@ class AudioLLM(torch.nn.Module):
         dout['text_norm'] = text_embs.norm(dim=-1).mean().item()
         return dout
 
-    def generate_with_noise(
-            self,
-            target,
-            prompt,
-            max_new_tokens=256,
-            temperature=0.7,
-            top_p=0.95,
-            no_repeat_ngram_size = 0,
-            repetition_penalty = 1.1,            
-    ):
-        prompt_ids = self.tokenizer(prompt, return_tensors="pt").input_ids.to(self.projector.linear.weight.device) # move to same device as projector for generation
-        target_ids = self.tokenizer(target, return_tensors="pt").input_ids.to(self.projector.linear.weight.device) # move to same device as projector for generation
-        formatted_batch = self.format_batch(target_ids, prompt_ids)
+    # def generate_with_noise(
+    #         self,
+    #         target,
+    #         prompt,
+    #         max_new_tokens=256,
+    #         temperature=0.7,
+    #         top_p=0.95,
+    #         no_repeat_ngram_size = 0,
+    #         repetition_penalty = 1.1,            
+    # ):
+    #     prompt_ids = self.tokenizer(prompt, return_tensors="pt").input_ids.to(self.projector.linear.weight.device) # move to same device as projector for generation
+    #     target_ids = self.tokenizer(target, return_tensors="pt").input_ids.to(self.projector.linear.weight.device) # move to same device as projector for generation
+    #     formatted_batch = self.format_batch(target_ids, prompt_ids)
 
-        outputs = self.llm.generate(
-            inputs_embeds=formatted_batch["inputs_embeds"],
-            attention_mask=formatted_batch["attention_mask"],
-            max_new_tokens=max_new_tokens,
-            do_sample=(temperature > 0),
-            temperature=temperature if temperature > 0 else None,
-            top_p=top_p if temperature > 0 else None,
-            no_repeat_ngram_size = no_repeat_ngram_size, 
-            repetition_penalty = repetition_penalty,
-            pad_token_id = self.tokenizer.pad_token_id,
-            eos_token_id = self.tokenizer.eos_token_id,
-            use_cache=True,
-            return_dict_in_generate=True,
-            output_scores=True,
-        )
+    #     outputs = self.llm.generate(
+    #         inputs_embeds=formatted_batch["inputs_embeds"],
+    #         attention_mask=formatted_batch["attention_mask"],
+    #         max_new_tokens=max_new_tokens,
+    #         do_sample=(temperature > 0),
+    #         temperature=temperature if temperature > 0 else None,
+    #         top_p=top_p if temperature > 0 else None,
+    #         no_repeat_ngram_size = no_repeat_ngram_size, 
+    #         repetition_penalty = repetition_penalty,
+    #         pad_token_id = self.tokenizer.pad_token_id,
+    #         eos_token_id = self.tokenizer.eos_token_id,
+    #         use_cache=True,
+    #         return_dict_in_generate=True,
+    #         output_scores=True,
+    #     )
 
         return self.tokenizer.batch_decode(outputs.sequences, skip_special_tokens=False)
 

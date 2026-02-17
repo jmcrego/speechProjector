@@ -16,6 +16,10 @@ class Projector(nn.Module):
         self.audio_embedding_dim = audio_embedding_dim
         self.llm_embedding_dim = llm_embedding_dim
 
+        # -------------------------
+        # --- Config parameters ---
+        # -------------------------
+
         path = config.get('path', None)
 
         # Convolution parameters
@@ -41,7 +45,11 @@ class Projector(nn.Module):
         assert 1500 % conv_stride == 0, f"conv_stride={conv_stride} must divide audio frames (1500) or frames will be dropped"
         self.seq_len_out = 1500 // conv_stride
 
-       # --- Pre RMSNorm ---
+        # -------------------------
+        # --- Model ---------------
+        # -------------------------
+
+        # --- Pre RMSNorm ---
         self.ln_pre = nn.RMSNorm(audio_embedding_dim) if rmsnorm_pre else nn.Identity() #(B, T, A) → (B, T, A)
 
         # Depthwise Conv1d
