@@ -116,7 +116,6 @@ class AudioLLM(torch.nn.Module):
 
         # Projector forward
         proj_embs, _ = self.projector(input_embeds) # [B, S_max, D_llm]
-        proj_embs *= 10 # scale up projector output to help with training stability (MSE is scale sensitive)
         B, S_max, D = proj_embs.shape
         assert S_max == target_ids.size(1), f"Expected S_max={target_ids.size(1)}, got {S_max}"
         assert D == self.llm_embedding_dim, f"Expected D={self.llm_embedding_dim}, got {D}"
