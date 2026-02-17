@@ -105,7 +105,7 @@ class AudioLLM(torch.nn.Module):
         assert input_embeds.dim() == 3, f"Expected input_embeds to have 3 dimensions [B, T, D], got {input_embeds.shape}"
         assert target_ids.dim() == 2, f"Expected target_ids to have 2 dimensions [B, T], got {target_ids.shape}"
         assert input_embeds.size(0) == target_ids.size(0), f"Batch size mismatch between input_embeds and target_ids: {input_embeds.size(0)} vs {target_ids.size(0)}"
-
+ 
         # Count txt tokens + 1 (result cannot be more than sequence length of target_ids)
         n_txt_tokens = (target_ids != self.tokenizer.pad_token_id).sum(dim=1) + 1 
         n_txt_tokens = torch.clamp(n_txt_tokens, max=target_ids.size(1)) # ensure n_txt_tokens does not exceed sequence length of target_ids

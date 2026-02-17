@@ -124,7 +124,8 @@ class Trainer:
                     last_epoch=self.step - 1 # indicate to scheduler that self.step steps have already been taken (so it can set the correct learning rate)
                 )
 
-            logger.info(f"Resume training from {config}, loaded optimizer/scheduler/step={self.step}")
+            logger.info(f"Resume training from {config}")
+            logger.info(f"Loaded optimizer/scheduler/step={self.step}")
 
         self.batch = 0 # microbatch step
         # self.epoch = 0 # number of epochs completed

@@ -24,7 +24,7 @@ def block(center_y, text, width=0.25, lw=0.9, fontsize=10, color="black"):
     ax.text(0.55, center_y, text, ha='center', va='center', fontsize=fontsize)
     return rect
 
-def group_box(top_y, bottom_y, width=0.5, lw=1.5, title=None):
+def group_box(top_y, bottom_y, width=0.45, lw=1.5, title=None):
     x = 0.55 - width / 2
     height = top_y - bottom_y
     rect = Rectangle((x, bottom_y), width, height + 0.05, fill=False, linewidth=lw)
@@ -98,7 +98,7 @@ for i in range(len(ordered)-1):
     ax.annotate("",
         xy=(0.55, y_end-0.03),
         xytext=(0.55, y_start+0.03),
-        arrowprops=dict(arrowstyle="->", linewidth=0.9)
+        arrowprops=dict(arrowstyle="-|>", linewidth=0.9)
     )
     # Data shape to the right
     ax.text(0.57, (y_start + y_end)/2, shapes[start],
