@@ -34,8 +34,8 @@ if __name__ == "__main__":
     parser.add_argument("--max_steps", type=int, default=1000000, help="Maximum number of training steps (0 for no limit)")
     parser.add_argument("--max_epochs", type=int, default=0, help="Maximum number of training epochs (0 for no limit)")
     parser.add_argument("--alpha", type=float, default=0.5, help="MSE loss = alpha * MSE_txt + (1 - alpha) * MSE_pad")
-    parser.add_argument("--weight_mse", type=float, default=10.0, help="Weight of MSE loss (0 to disable it)")
-    parser.add_argument("--weight_cos", type=float, default=10.0, help="Weight of cosine loss (0 to disable it)")
+    parser.add_argument("--weight_mse", type=float, default=0., help="Weight of MSE loss (0 to disable it)")
+    parser.add_argument("--weight_cos", type=float, default=0., help="Weight of cosine loss (0 to disable it)")
     parser.add_argument("--weight_scale", type=float, default=0., help="Weight of scale loss (0 to disable it)")
     parser.add_argument("--weight_ce", type=float, default=0., help="Weight of cross-entropy loss (0 to disable it)")
     parser.add_argument("--temp_ce", type=float, default=1.0, help="Temperature for cross-entropy loss")
@@ -50,6 +50,13 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", type=str, default="./stage1", help="Output directory of training")
     parser.add_argument("--debug", action="store_true", help="Debug mode with more logging")
     args = parser.parse_args()
+
+    assert args.alpha >= 0 and args.alpha <= 1, "Alpha must be in [0, 1]"
+    assert args.weight_mse >= 0, "Weight MSE must be >= 0"
+    assert args.weight_cos >= 0, "Weight cosine must be >= 0"
+    assert args.weight_scale >= 0, "Weight scale must be >= 0"
+    assert args.weight_ce >= 0, "Weight CE must be >= 0"
+    assert args.weight_mse > 0 or args.weight_cos > 0 or args.weight_scale > 0 or args.weight_ce > 0, "At least one loss must have weight > 0"
 
     if args.max_steps == 0 and args.max_epochs == 0:
         raise ValueError("At least one of max_steps or max_epochs must be > 0 to define a stopping criterion for training")

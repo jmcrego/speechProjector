@@ -128,13 +128,13 @@ class AudioLLM(torch.nn.Module):
         assert D == self.llm_embedding_dim, f"Expected D={self.llm_embedding_dim}, got {D}"
         text_norm = text_embs.norm(dim=-1).mean()
 
-        # --------------
-        # --- losses ---
-        # --------------
         dout = {}
         dout['audio_norm'] = audio_norm.item()
         dout['text_norm'] = text_norm.item()
 
+        # --------------
+        # --- losses ---
+        # --------------
         loss = torch.tensor(0.0, device=proj_embs.device)
 
         # ----- MSE: absolute alignment (scale + direction) -----
