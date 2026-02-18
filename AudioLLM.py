@@ -157,7 +157,9 @@ class AudioLLM(torch.nn.Module):
         # ----- Contrastive loss: directional alignment with temperature scaling -----
         proj_embs_norm = F.normalize(proj_embs, dim=-1)
         text_embs_norm = F.normalize(text_embs, dim=-1)
-        logits = (proj_embs_norm @ text_embs_norm) / self.temp_contrast # Similarity matrix [B, B], scale by temperature
+        logger.info(f"proj_embs_norm: {proj_embs_norm.shape}, dtype={proj_embs_norm.dtype}")
+        logger.info(f"text_embs_norm: {text_embs_norm.shape}, dtype={text_embs_norm.dtype}")
+        logits = (proj_embs_norm @ text_embs_norm.t()) / self.temp_contrast # Similarity matrix [B, B], scale by temperature
         targets = torch.arange(logits.size(0), device=logits.device) # Targets are diagonal
         loss_contrast = F.cross_entropy(logits, targets)
         dout['loss_contrast'] = loss_contrast.item()
