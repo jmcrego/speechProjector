@@ -219,6 +219,8 @@ class Trainer:
                         accum['loss_ce'] += outputs["loss_ce"]
                     if outputs.get("loss_scale") is not None:
                         accum['loss_scale'] += outputs["loss_scale"]
+                    if outputs.get("loss_contrast") is not None:
+                        accum['loss_contrast'] += outputs["loss_contrast"]
                     accum['audio_norm'] += outputs["audio_norm"]
                     accum['text_norm'] += outputs["text_norm"]
                     accum['n_batchs'] += 1
