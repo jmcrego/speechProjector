@@ -268,6 +268,7 @@ class AudioLLM(torch.nn.Module):
             )
             return self.tokenizer.batch_decode(outputs.sequences, skip_special_tokens=False)
 
+        prompt_ids = self.tokenizer(prompt, return_tensors="pt").input_ids #.to(self.projector.linear.weight.device) # move to same device as projector for generation
         formatted_batch = self.format_batch(audio_paths, prompt_ids)
 
         outputs = self.llm.generate(
