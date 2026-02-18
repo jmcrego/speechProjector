@@ -156,6 +156,7 @@ class AudioLLM(torch.nn.Module):
 
         # ----- Contrastive loss: directional alignment with temperature scaling -----
         proj_embs_norm = F.normalize(proj_embs, dim=-1)
+        B, T, D = proj_embs_norm.shape
         text_embs_norm = F.normalize(text_embs, dim=-1)
         proj_flat = proj_embs_norm.reshape(B * T, D)   # [BT, D]
         text_flat = text_embs_norm.reshape(B * T, D)   # [BT, D]
