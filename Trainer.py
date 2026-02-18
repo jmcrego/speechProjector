@@ -338,6 +338,7 @@ class Trainer:
         loss_cos = accum['loss_cos'] / max(1, accum['n_batchs']) if accum.get('loss_cos') is not None else None
         loss_ce = accum['loss_ce'] / max(1, accum['n_batchs']) if accum.get('loss_ce') is not None else None
         loss_scale = accum['loss_scale'] / max(1, accum['n_batchs']) if accum.get('loss_scale') is not None else None
+        loss_contrast = accum['loss_contrast'] / max(1, accum['n_batchs']) if accum.get('loss_contrast') is not None else None
 
         audio_norm = accum['audio_norm'] / max(1, accum['n_batchs'])
         text_norm = accum['text_norm'] / max(1, accum['n_batchs'])
@@ -353,6 +354,7 @@ class Trainer:
         log_str += f"ℒ_cos={loss_cos:.5f} | " if loss_cos is not None else ""
         log_str += f"ℒ_ce={loss_ce:.5f} | " if loss_ce is not None else ""
         log_str += f"ℒ_scale={loss_scale:.5f} | " if loss_scale is not None else ""
+        log_str += f"ℒ_contrast={loss_contrast:.5f} | " if loss_contrast is not None else ""
 
         log_str += f"lr_proj={self.optimizer.param_groups[0]['lr']:.3e} | "
 
@@ -374,6 +376,7 @@ class Trainer:
                 step=self.step, 
                 loss=loss, 
                 loss_cos=loss_cos,
+                loss_contrast=loss_contrast,
                 loss_mse_txt=loss_mse_txt,
                 loss_mse_pad=loss_mse_pad,
                 loss_ce=loss_ce,

@@ -15,7 +15,7 @@ class AudioLLM(torch.nn.Module):
     """
     Wrapper combining Embedder -> Projector -> LLM
     """
-    def __init__(self, config, alpha, weight_mse, weight_cos, weight_scale, weight_ce, temp_ce, device, dtype, is_infer=False):
+    def __init__(self, config, alpha, weight_mse, weight_cos, weight_scale, weight_ce, temp_ce, weight_contrast, temp_contrast, device, dtype, is_infer=False):
         super().__init__()
 
         audio_path = config['audio']['path'] #only to get embedding dim
@@ -81,6 +81,8 @@ class AudioLLM(torch.nn.Module):
         self.weight_scale = weight_scale
         self.weight_ce = weight_ce
         self.temp_ce = temp_ce
+        self.weight_contrast = weight_contrast
+        self.temp_contrast = temp_contrast
         if not is_infer:
             self.summary()
 
@@ -151,6 +153,17 @@ class AudioLLM(torch.nn.Module):
         dout['loss_cos'] = loss_cos.item()
         if self.weight_cos > 0:
             loss += self.weight_cos * loss_cos
+
+        # ----- Contrastive loss: directional alignment with temperature scaling -----
+        proj_embs_norm = F.normalize(proj_embs, dim=-1)
+        text_embs_norm = F.normalize(text_embs, dim=-1)
+        logits = proj_embs_norm @ text_embs_norm.T # Similarity matrix [B, B]
+        logits = logits / self.temp_contrast # Scale by temperature
+        targets = torch.arange(logits.size(0), device=logits.device) # Targets are diagonal
+        loss_contrast = F.cross_entropy(logits, targets)
+        dout['loss_contrast'] = loss_contrast.item()
+        if self.weight_contrast > 0:
+            loss += self.weight_contrast * loss_contrast
 
         # ----- scale loss: handles scale differences -----
         loss_scale = ((proj_embs.norm(dim=-1) - text_embs.norm(dim=-1))**2)[txt_mask].mean()

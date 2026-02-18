@@ -39,6 +39,8 @@ if __name__ == "__main__":
     parser.add_argument("--weight_scale", type=float, default=0., help="Weight of scale loss (0 to disable it)")
     parser.add_argument("--weight_ce", type=float, default=0., help="Weight of cross-entropy loss (0 to disable it)")
     parser.add_argument("--temp_ce", type=float, default=1.0, help="Temperature for cross-entropy loss")
+    parser.add_argument("--weight_contrast", type=float, default=0., help="Weight of contrastive loss (0 to disable it)")
+    parser.add_argument("--temp_contrast", type=float, default=1.0, help="Temperature for contrastive loss")
     # train pars
     parser.add_argument("--batch_size", type=int, default=128, help="Number of samples in a batch")
     parser.add_argument("--accum_steps", type=int, default=1, help="Accumulate this many batchs before optimizing")
@@ -56,7 +58,8 @@ if __name__ == "__main__":
     assert args.weight_cos >= 0, "Weight cosine must be >= 0"
     assert args.weight_scale >= 0, "Weight scale must be >= 0"
     assert args.weight_ce >= 0, "Weight CE must be >= 0"
-    assert args.weight_mse > 0 or args.weight_cos > 0 or args.weight_scale > 0 or args.weight_ce > 0, "At least one loss must have weight > 0"
+    assert args.weight_contrast >= 0, "Weight contrast must be >= 0"
+    assert args.weight_mse > 0 or args.weight_cos > 0 or args.weight_scale > 0 or args.weight_ce > 0 or args.weight_contrast > 0, "At least one loss must have weight > 0"
 
     if args.max_steps == 0 and args.max_epochs == 0:
         raise ValueError("At least one of max_steps or max_epochs must be > 0 to define a stopping criterion for training")
@@ -101,6 +104,8 @@ if __name__ == "__main__":
         weight_scale=args.weight_scale,
         weight_ce=args.weight_ce,
         temp_ce=args.temp_ce,
+        weight_contrast=args.weight_contrast,
+        temp_contrast=args.temp_contrast,
         device=device,
         dtype=dtype 
     )
