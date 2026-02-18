@@ -58,14 +58,14 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true", help="Debug mode with more logging")
     args = parser.parse_args()
 
-    prompt = (f'<|im_start|>system'
-        '<|im_end|>'
-        '<|im_start|>user'
-        f'Translate the following {args.slang} speech utterance into {args.tlang}:'
-        f'{args.slang}: <extra_id_0>'
-        f'{args.tlang}: <|im_end|>'
-        '<|im_start|>assistant'
-    )
+    # prompt = (f'<|im_start|>system'
+    #     '<|im_end|>'
+    #     '<|im_start|>user'
+    #     f'Translate the following {args.slang} speech utterance into {args.tlang}:'
+    #     f'{args.slang}: <extra_id_0>'
+    #     f'{args.tlang}: <|im_end|>'
+    #     '<|im_start|>assistant'
+    # )
 
     prompt = (f'<|im_start|>user'
         f'Translate to {args.tlang}:'
@@ -74,12 +74,12 @@ if __name__ == "__main__":
         '<|im_start|>assistant'
     )
 
-    prompt = (f'<|im_start|>user'
-        f'Translate to {args.tlang}:'
-        'a group of people are gathered in a public area</s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s>'
-        '<|im_end|>'
-        '<|im_start|>assistant'
-    )
+    # prompt = (f'<|im_start|>user'
+    #     f'Translate to {args.tlang}:'
+    #     'a group of people are gathered in a public area</s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s>'
+    #     '<|im_end|>'
+    #     '<|im_start|>assistant'
+    # )
 
     # --------------------------------------------------
     # Logging
