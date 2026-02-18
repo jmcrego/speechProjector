@@ -156,15 +156,21 @@ class AudioLLM(torch.nn.Module):
 
         # ----- Contrastive loss: directional alignment with temperature scaling -----
         proj_embs_norm = F.normalize(proj_embs, dim=-1)
-        B, T, D = proj_embs_norm.shape
         text_embs_norm = F.normalize(text_embs, dim=-1)
-        proj_flat = proj_embs_norm.reshape(B * T, D)   # [BT, D]
-        text_flat = text_embs_norm.reshape(B * T, D)   # [BT, D]
-        # logger.info(f"proj_embs_norm: {proj_flat.shape}, dtype={proj_flat.dtype}")
-        # logger.info(f"text_embs_norm: {text_flat.shape}, dtype={text_flat.dtype}")
-        logits = (proj_flat @ text_flat.T) # Similarity matrix [BT, BT]
-        logits = logits / self.temp_contrast # scale by temperature
-        targets = torch.arange(B * T, device=logits.device)
+        B, T, D = proj_embs_norm.shape
+        # [B, T, T]
+        logits = torch.matmul(proj_embs_norm, text_embs_norm.transpose(1, 2))
+        logits = logits / self.temp_contrast
+        # Build per-token targets
+        targets = torch.arange(T, device=logits.device).unsqueeze(0).expand(B, T)
+        # Flatten
+        logits = logits.reshape(B * T, T)
+        targets = targets.reshape(B * T)
+        # Flatten mask
+        valid_mask = txt_mask.reshape(B * T)
+        # Keep only valid tokens
+        logits = logits[valid_mask]
+        targets = targets[valid_mask]
         loss_contrast = F.cross_entropy(logits, targets)
         dout['loss_contrast'] = loss_contrast.item()
         if self.weight_contrast > 0:
