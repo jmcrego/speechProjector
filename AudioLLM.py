@@ -160,8 +160,8 @@ class AudioLLM(torch.nn.Module):
         text_embs_norm = F.normalize(text_embs, dim=-1)
         proj_flat = proj_embs_norm.reshape(B * T, D)   # [BT, D]
         text_flat = text_embs_norm.reshape(B * T, D)   # [BT, D]
-        logger.info(f"proj_embs_norm: {proj_flat.shape}, dtype={proj_flat.dtype}")
-        logger.info(f"text_embs_norm: {text_flat.shape}, dtype={text_flat.dtype}")
+        # logger.info(f"proj_embs_norm: {proj_flat.shape}, dtype={proj_flat.dtype}")
+        # logger.info(f"text_embs_norm: {text_flat.shape}, dtype={text_flat.dtype}")
         logits = (proj_flat @ text_flat.T) / self.temp_contrast # Similarity matrix [B, B], scale by temperature
         targets = torch.arange(B * T, device=logits.device)
         loss_contrast = F.cross_entropy(logits, targets)
