@@ -15,7 +15,7 @@ class AudioLLM(torch.nn.Module):
     """
     Wrapper combining Embedder -> Projector -> LLM
     """
-    def __init__(self, config, alpha, weight_mse, weight_cos, weight_scale, weight_ce, temp_ce, weight_contrast, temp_contrast, device, dtype, is_infer=False):
+    def __init__(self, config, device, dtype, is_infer=False, alpha=None, weight_mse=None, weight_cos=None, weight_scale=None, weight_ce=None, temp_ce=None, weight_contrast=None, temp_contrast=None):
         super().__init__()
 
         audio_path = config['audio']['path'] #only to get embedding dim
