@@ -197,33 +197,42 @@ class Dataset(Dataset):
 
             ### tokenize with padding to max_length=seq_len (projector output length) and truncation=False 
             ### discard samples longer than seq_len
-            target_ids = tokenizer(
-                sample['target'], 
-                return_tensors="pt", 
-                padding="max_length", 
-                max_length=seq_len,
-                truncation=False, 
-                add_special_tokens=False, 
-                return_attention_mask=False,
-            )
             
-            n_padded_tokens = (target_ids == tokenizer.pad_token_id).sum().item()
+            # target_ids = tokenizer(
+            #     sample['target'], 
+            #     return_tensors="pt", 
+            #     padding="max_length", 
+            #     max_length=seq_len,
+            #     truncation=False, 
+            #     add_special_tokens=False, 
+            #     return_attention_mask=False,
+            # )
+            target_ids = tokenizer(
+                sample['target'],
+                return_tensors="pt",
+                padding=False,
+                truncation=False,
+                add_special_tokens=False,
+            )
+
             target_ids = target_ids.input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
+            len = target_ids.size(0)
 
-            if target_ids.size(0) == 0 or n_padded_tokens == target_ids.size(0):
-                #logger.warning(f"Skipping empty target_ids for sample idx={idx}")
-                n_empty += 1
-                continue
-
-            if n_padded_tokens == 0:
-                #logger.warning(f"Skipping sample idx={idx} with no padding in target_ids (len >= seq_len={seq_len})")
+            if len >= seq_len:
+                logger.warning(f"Skipping sample idx={idx} with target_ids length {len} longer or equal than seq_len={seq_len}")
                 n_maxlen += 1
                 continue
 
-            # if target_ids.size(0) > seq_len:
-            #     #logger.warning(f"skipping too long target_ids for sample idx={idx}: {target_ids.size(0)} > {seq_len}")
-            #     n_maxlen += 1
-            #     continue
+            if len == 0:
+                logger.warning(f"Skipping sample idx={idx} with empty target_ids after tokenization")
+                n_empty += 1
+                continue
+
+            #pad to max_length=seq_len (projector output length) with tokenizer.pad_token_id
+            padding_length = seq_len - len
+            if padding_length > 0:
+                padding = torch.full((padding_length,), tokenizer.pad_token_id, dtype=torch.long)
+                target_ids = torch.cat([target_ids, padding], dim=0)
 
             prompt_ids = tokenizer(
                 sample['prompt'], 
