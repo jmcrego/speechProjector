@@ -212,10 +212,10 @@ class AudioLLM(torch.nn.Module):
             target_ids = pad_sequence(target_ids, batch_first=True, padding_value=pad_id).to(device)
 
         # Embed prompt and target
-        prompt_pre_embs = self.embedder(prompt_pre_ids)   # (B, Lpre_max, D)
-        prompt_pos_embs = self.embedder(prompt_pos_ids) # (B, Lpost_max, D)
+        prompt_pre_embs = self.llm.embedder(prompt_pre_ids)   # (B, Lpre_max, D)
+        prompt_pos_embs = self.llm.embedder(prompt_pos_ids) # (B, Lpost_max, D)
         if target_ids is not None:
-            target_embs = self.embedder(target_ids)       # (B, Ltgt_max, D)
+            target_embs = self.llm.embedder(target_ids)       # (B, Ltgt_max, D)
 
         # concat sequences
         if target_ids is not None:
