@@ -16,7 +16,7 @@ records = []
 with open(log_path, "r") as f:
     for line in f:
         obj = json.loads(line)
-        if "split" in obj:  # skip config lines or malformed entries
+        if "split" in obj:
             records.append(obj)
 
 df = pd.DataFrame(records)
@@ -49,13 +49,11 @@ for i, loss_name in enumerate(loss_cols):
     ax.legend()
     ax.grid(True)
 
-# ---- Last subplot: Proj Norm + Learning Rate ----
+# ---- Last subplot: train_proj_norm + train_lr only ----
 ax = axes[len(loss_cols)]
 if "proj_norm" in train_df.columns:
     ax.plot(train_df["step"], train_df["proj_norm"], label="Train Proj Norm")
-if "proj_norm" in eval_df.columns:
-    ax.plot(eval_df["step"], eval_df["proj_norm"], label="Eval Proj Norm")
-ax.set_title("Proj Norm & Learning Rate")
+ax.set_title("Train Proj Norm & Learning Rate")
 ax.set_xlabel("Step")
 ax.set_ylabel("Proj Norm")
 ax.grid(True)
@@ -64,8 +62,6 @@ ax.grid(True)
 ax2 = ax.twinx()
 if "lr_proj" in train_df.columns:
     ax2.plot(train_df["step"], train_df["lr_proj"], linestyle="--", color="tab:orange", label="Train LR")
-if "lr_proj" in eval_df.columns:
-    ax2.plot(eval_df["step"], eval_df["lr_proj"], linestyle="--", color="tab:red", label="Eval LR")
 ax2.set_ylabel("Learning Rate")
 
 # Combine legends from both axes
