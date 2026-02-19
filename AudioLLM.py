@@ -38,14 +38,17 @@ class AudioLLM(torch.nn.Module):
         logger.info(f"Audio embedding dimension: {self.audio_embedding_dim}")
         logger.info(f"LLM embedding dimension: {self.llm_embedding_dim}")
 
-        if not is_infer: 
+        if is_infer: 
             ### load Audio Embedder ###
             self.audio_embedder = Embedder(config['audio'])
             self.audio_embedder.to(device=device, dtype=dtype)
+            self.audio_embedder.freeze() # freeze audio embedder during inference to save memory and ensure eval mode
 
         ### load Projector ###
         self.projector = Projector(config['projector'], audio_embedding_dim=self.audio_embedding_dim, llm_embedding_dim=self.llm_embedding_dim)
         self.projector.to(device=device, dtype=dtype)
+        if not is_infer:
+            self.projector.unfreeze() # ensure projector is in train mode (unfrozen) by default, even during inference
 
         # load only the LLM embedding layer during training and when CE loss is not used, to save GPU memory, otherwise load the full LLM
         self.llm = LLM(
@@ -54,6 +57,7 @@ class AudioLLM(torch.nn.Module):
             load_only_embedding_layer=not is_infer and weights.get('CE', 0.) == 0.
         ) 
         self.llm.to(device=device, dtype=dtype)
+        self.llm.freeze() # freeze LLM during training to save memory, only embedding layer (if loaded) will be used for loss computation, full LLM will be used during inference
 
         self.audio_token = config["llm"]["audio_token"]
         self.audio_token_id = self.llm.tokenizer.convert_tokens_to_ids(self.audio_token)
