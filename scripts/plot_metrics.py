@@ -16,7 +16,7 @@ records = []
 with open(log_path, "r") as f:
     for line in f:
         obj = json.loads(line)
-        if "split" in obj:  # skip config line
+        if "split" in obj:  # skip config lines or malformed entries
             records.append(obj)
 
 df = pd.DataFrame(records)
@@ -24,59 +24,31 @@ df = pd.DataFrame(records)
 train_df = df[df["split"] == "train"].copy()
 eval_df  = df[df["split"] == "eval"].copy()
 
-# ---- Create figure with 4 subplots ----
-fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+# ---- Identify all loss columns ----
+loss_cols = [c for c in df.columns if c.startswith("loss")]
 
-# 1) Total Loss
-ax = axes[0, 0]
-ax.plot(train_df["step"], train_df["loss"], label="Train")
-ax.plot(eval_df["step"], eval_df["loss"], label="Eval")
-ax.set_title("Total Loss")
-ax.set_xlabel("Step")
-ax.set_ylabel("Loss")
-ax.legend()
+# ---- Create figure dynamically based on number of losses ----
+n_losses = len(loss_cols)
+n_cols = 2
+n_rows = (n_losses + 1) // n_cols
+fig, axes = plt.subplots(n_rows, n_cols, figsize=(14, 5 * n_rows))
+axes = axes.flatten()  # flatten in case of multiple rows
 
-# 2) Cosine Loss
-ax = axes[0, 1]
-ax.plot(train_df["step"], train_df["loss_cos"], label="Train")
-ax.plot(eval_df["step"], eval_df["loss_cos"], label="Eval")
-ax.set_title("Cosine Loss")
-ax.set_xlabel("Step")
-ax.set_ylabel("Loss")
-ax.legend()
+for i, loss_name in enumerate(loss_cols):
+    ax = axes[i]
+    if loss_name in train_df.columns:
+        ax.plot(train_df["step"], train_df[loss_name], label="Train")
+    if loss_name in eval_df.columns:
+        ax.plot(eval_df["step"], eval_df[loss_name], label="Eval")
+    ax.set_title(loss_name)
+    ax.set_xlabel("Step")
+    ax.set_ylabel("Value")
+    ax.legend()
+    ax.grid(True)
 
-# 3) MSE Losses
-ax = axes[1, 0]
-ax.plot(train_df["step"], train_df["loss_mse_txt"], label="Train MSE txt")
-ax.plot(eval_df["step"], eval_df["loss_mse_txt"], label="Eval MSE txt")
-ax.plot(train_df["step"], train_df["loss_mse_pad"], linestyle="--", label="Train MSE pad")
-ax.plot(eval_df["step"], eval_df["loss_mse_pad"], linestyle="--", label="Eval MSE pad")
-ax.set_title("MSE Loss")
-ax.set_xlabel("Step")
-ax.set_ylabel("MSE")
-ax.legend()
-
-# 4) Audio Norm + Learning Rate
-ax = axes[1, 1]
-
-# Audio norm (left axis)
-ax.plot(train_df["step"], train_df["proj_norm"], label="Train Proj Norm")
-ax.plot(eval_df["step"], eval_df["proj_norm"], label="Eval Proj Norm")
-ax.set_title("Proj Norm & Learning Rate")
-ax.set_xlabel("Step")
-ax.set_ylabel("Proj Norm")
-# Learning rate (right axis)
-ax2 = ax.twinx()
-if "lr_proj" in train_df.columns:
-    ax2.plot(train_df["step"], train_df["lr_proj"], linestyle="--", label="Train LR")
-# if "lr_proj" in eval_df.columns:
-#     ax2.plot(eval_df["step"], eval_df["lr_proj"], linestyle="--", label="Eval LR")
-ax2.set_ylabel("Learning Rate")
-
-# Combine legends from both axes
-lines, labels = ax.get_legend_handles_labels()
-lines2, labels2 = ax2.get_legend_handles_labels()
-ax.legend(lines + lines2, labels + labels2)
+# If there are any unused axes, remove them
+for j in range(i + 1, len(axes)):
+    fig.delaxes(axes[j])
 
 plt.tight_layout()
 plt.savefig(output_path, dpi=300)
