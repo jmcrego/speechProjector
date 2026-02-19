@@ -19,7 +19,7 @@ from torch.nn.utils.rnn import pad_sequence
 from transformers import get_linear_schedule_with_warmup, get_cosine_schedule_with_warmup
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 
-from Dataset import BatchedBucketSampler, collate_fn, Collator
+from Dataset import BatchedBucketSampler, Collator
 from scripts.utils import compute_grad_norm
 
 logger = logging.getLogger("Trainer")
