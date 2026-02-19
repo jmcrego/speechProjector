@@ -51,7 +51,6 @@ class AudioLLM(torch.nn.Module):
         self.llm = LLM(
             config['llm'], 
             config_lora=None, 
-            is_infer=is_infer, 
             load_only_embedding_layer=not is_infer and weights.get('CE', 0.) == 0.
         ) 
         self.llm.to(device=device, dtype=dtype)
