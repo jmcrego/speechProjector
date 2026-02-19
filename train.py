@@ -123,13 +123,13 @@ if __name__ == "__main__":
 
     train_dataset = Dataset(
         jsonl_paths=args.train,
-        tokenizer=model.tokenizer,
+        tokenizer=model.llm.tokenizer,
         seq_len=model.projector.seq_len_out,
     )
 
     eval_dataset = Dataset(
         jsonl_paths=args.eval,
-        tokenizer=model.tokenizer,
+        tokenizer=model.llm.tokenizer,
         seq_len=model.projector.seq_len_out,
         # n_samples=200, #max number of eval samples (for quick eval during training, set to 0 for all)
     ) if args.eval is not None else None
