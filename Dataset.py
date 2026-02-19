@@ -11,21 +11,41 @@ from tqdm import tqdm
 from pathlib import Path
 from collections import defaultdict
 from torch.utils.data import Dataset, BatchSampler
+from torch.nn.utils.rnn import pad_sequence
 
 logger = logging.getLogger("Dataset")
 
-def collate_fn(batch):
-    target_ids = torch.stack([x["target_ids"] for x in batch], dim=0)  # (B, T)
-    prompt_ids = torch.stack([x["prompt_ids"] for x in batch], dim=0)  # (B, T)
-    pt_paths = [x["pt_path"] for x in batch] # List[str] (B,)
-    offsets = [x["offset"] for x in batch] # List[int] (B,)
 
-    return {
-        "pt_paths": pt_paths,         # List[str] (B,)
-        "offsets": offsets,           # (B,)
-        "target_ids": target_ids,     # (B, T)
-        "prompt_ids": prompt_ids,     # (B, T)
-    }
+class Collator:
+    def __init__(self, pad_token_id):
+        self.pad_token_id = pad_token_id
+
+    def __call__(self, batch):
+        target_ids = torch.stack([x["target_ids"].squeeze(0) for x in batch], dim=0)  # (B, T)
+        prompt_list = [x["prompt_ids"].squeeze(0) for x in batch]
+        prompt_ids = pad_sequence(prompt_list, batch_first=True, padding_value=self.pad_token_id)
+        pt_paths = [x["pt_path"] for x in batch]
+        offsets = [x["offset"] for x in batch]
+
+        return {
+            "pt_paths": pt_paths,
+            "offsets": offsets,
+            "target_ids": target_ids,
+            "prompt_ids": prompt_ids,
+        }
+        
+# def collate_fn(batch):
+#     target_ids = torch.stack([x["target_ids"] for x in batch], dim=0)  # (B, T)
+#     prompt_ids = torch.stack([x["prompt_ids"] for x in batch], dim=0)  # (B, T)
+#     pt_paths = [x["pt_path"] for x in batch] # List[str] (B,)
+#     offsets = [x["offset"] for x in batch] # List[int] (B,)
+
+#     return {
+#         "pt_paths": pt_paths,         # List[str] (B,)
+#         "offsets": offsets,           # (B,)
+#         "target_ids": target_ids,     # (B, T)
+#         "prompt_ids": prompt_ids,     # (B, T)
+#     }
 
 
 class BatchedBucketSampler(BatchSampler):
@@ -193,16 +213,20 @@ class Dataset(Dataset):
                 n_empty += 1
                 continue
 
-            if target_ids.size(0) > seq_len:
-                #logger.warning(f"skipping too long target_ids for sample idx={idx}: {target_ids.size(0)} > {seq_len}")
+            n_padded_tokens = (target_ids == tokenizer.pad_token_id).sum().item()
+            if n_padded_tokens == 0:
+                logger.warning(f"Skipping sample idx={idx} with no padding in target_ids (len >= seq_len={seq_len})")
                 n_maxlen += 1
                 continue
+
+            # if target_ids.size(0) > seq_len:
+            #     #logger.warning(f"skipping too long target_ids for sample idx={idx}: {target_ids.size(0)} > {seq_len}")
+            #     n_maxlen += 1
+            #     continue
 
             prompt_ids = tokenizer(
                 sample['prompt'], 
                 return_tensors="pt", 
-                padding="max_length", 
-                max_length=seq_len,
                 truncation=False, 
                 add_special_tokens=False, 
                 return_attention_mask=False,

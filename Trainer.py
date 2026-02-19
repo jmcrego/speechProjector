@@ -19,7 +19,7 @@ from torch.nn.utils.rnn import pad_sequence
 from transformers import get_linear_schedule_with_warmup, get_cosine_schedule_with_warmup
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 
-from Dataset import BatchedBucketSampler, collate_fn
+from Dataset import BatchedBucketSampler, collate_fn, Collator
 from scripts.utils import compute_grad_norm
 
 logger = logging.getLogger("Trainer")
@@ -77,8 +77,9 @@ class Trainer:
         # -----------------------------
         # Sampler & DataLoader
         # -----------------------------        
+        collator = Collator(pad_token_id=self.tokenizer.pad_token_id)
         self.train_sampler = BatchedBucketSampler(train_dataset, batch_size=batch_size, shuffle=True)
-        self.train_loader = DataLoader(train_dataset, batch_sampler=self.train_sampler, collate_fn=collate_fn)
+        self.train_loader = DataLoader(train_dataset, batch_sampler=self.train_sampler, collate_fn=collator)
         logger.info(f"Initialized Sampler and DataLoader for train with batch_size={batch_size} with {len(self.train_dataset)} samples, {len(self.train_loader)} batches")
 
         if max_epochs > 0 and max_steps == 0:
@@ -88,7 +89,7 @@ class Trainer:
             logger.info(f"Calculated max_steps={self.max_steps} based on max_epochs={max_epochs} with accum_steps={accum_steps}: num_batches_per_epoch={num_batches_per_epoch}, num_steps_per_epoch={num_steps_per_epoch}")
 
         self.eval_sampler = BatchedBucketSampler(eval_dataset, batch_size=batch_size, shuffle=False)
-        self.eval_loader = DataLoader(eval_dataset, batch_sampler=self.eval_sampler, collate_fn=collate_fn)
+        self.eval_loader = DataLoader(eval_dataset, batch_sampler=self.eval_sampler, collate_fn=collator)
         logger.info(f"Initialized Sampler and DataLoader for eval with batch_size={batch_size} with {len(self.eval_dataset)} samples")
 
         # -----------------------------

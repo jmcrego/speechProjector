@@ -179,7 +179,7 @@ class AudioLLM(torch.nn.Module):
             # the remaining <pad> tokens after the first one can be left as they will be ignored
             target_ids_llm = target_ids.clone()
             pad_mask = (target_ids_llm == pad_id)
-            assert pad_mask.any(dim=1).all()
+            assert pad_mask.any(dim=1).all(), "Each sequence in target_ids must contain at least one pad token to replace with eos token"
             first_pad_pos = pad_mask.float().argmax(dim=1)
             rows = torch.arange(B, device=target_ids.device)
             target_ids_llm[rows, first_pad_pos] = eos_id
