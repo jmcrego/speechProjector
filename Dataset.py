@@ -135,7 +135,7 @@ class Dataset(Dataset):
         #random seed for reproducibility
         np.random.seed(seed)
 
-        tokenizer.padding_side = "right"
+        tokenizer.padding_side = "right" # not needed as we do manual padding, but set for safety in case of future changes to tokenization code
 
         self.bucket_size = None
 
@@ -216,22 +216,22 @@ class Dataset(Dataset):
             )
 
             target_ids = target_ids.input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
-            len = target_ids.size(0)
+            length = target_ids.size(0)
 
-            if len >= seq_len:
-                logger.warning(f"Skipping sample idx={idx} with target_ids length {len} longer or equal than seq_len={seq_len}")
+            if length >= seq_len:
+                logger.warning(f"Skipping sample idx={idx} with target_ids length {length} longer or equal than seq_len={seq_len}")
                 n_maxlen += 1
                 continue
 
-            if len == 0:
+            if length == 0:
                 logger.warning(f"Skipping sample idx={idx} with empty target_ids after tokenization")
                 n_empty += 1
                 continue
 
             #pad to max_length=seq_len (projector output length) with tokenizer.pad_token_id
-            padding_len = seq_len - len
-            if padding_len > 0:
-                padding = torch.full((padding_len,), tokenizer.pad_token_id, dtype=torch.long)
+            padding_length = seq_len - length
+            if padding_length > 0:
+                padding = torch.full((padding_length,), tokenizer.pad_token_id, dtype=torch.long)
                 target_ids = torch.cat([target_ids, padding], dim=0)
 
             prompt_ids = tokenizer(
