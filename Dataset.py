@@ -229,9 +229,9 @@ class Dataset(Dataset):
                 continue
 
             #pad to max_length=seq_len (projector output length) with tokenizer.pad_token_id
-            padding_length = seq_len - len
-            if padding_length > 0:
-                padding = torch.full((padding_length,), tokenizer.pad_token_id, dtype=torch.long)
+            padding_len = seq_len - len
+            if padding_len > 0:
+                padding = torch.full((padding_len,), tokenizer.pad_token_id, dtype=torch.long)
                 target_ids = torch.cat([target_ids, padding], dim=0)
 
             prompt_ids = tokenizer(
