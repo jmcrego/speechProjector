@@ -198,15 +198,6 @@ class Dataset(Dataset):
             ### tokenize with padding to max_length=seq_len (projector output length) and truncation=False 
             ### discard samples longer than seq_len
             
-            # target_ids = tokenizer(
-            #     sample['target'], 
-            #     return_tensors="pt", 
-            #     padding="max_length", 
-            #     max_length=seq_len,
-            #     truncation=False, 
-            #     add_special_tokens=False, 
-            #     return_attention_mask=False,
-            # )
             target_ids = tokenizer(
                 sample['target'],
                 return_tensors="pt",
