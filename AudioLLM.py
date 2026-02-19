@@ -234,10 +234,25 @@ class AudioLLM(torch.nn.Module):
         else:
             attention_mask = torch.cat([pre_mask, proj_mask, pos_mask], dim=1)
 
+        # -------------------------
+        # Build FULL labels tensor
+        # -------------------------
+        labels = None
+        if target_ids is not None:
+            B, T, _ = inputs_embeds.shape
+            labels = torch.full((B, T), -100, device=device)
+
+            # Compute where targets start
+            start = ( prompt_pre_ids.size(1) + proj_embs.size(1) + prompt_pos_ids.size(1) )
+            labels[:, start:start + target_ids.size(1)] = target_ids
+
+            # Ignore padding in targets
+            labels[labels == pad_id] = -100
+
         return {
             "inputs_embeds": inputs_embeds.to(dtype),
             "attention_mask": attention_mask,
-            "labels": target_ids if target_ids is not None else None,
+            "labels": labels,
         }
 
 
