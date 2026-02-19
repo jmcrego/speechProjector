@@ -60,12 +60,11 @@ ax.legend()
 ax = axes[1, 1]
 
 # Audio norm (left axis)
-ax.plot(train_df["step"], train_df["audio_norm"], label="Train Audio Norm")
-ax.plot(eval_df["step"], eval_df["audio_norm"], label="Eval Audio Norm")
-ax.set_title("Audio Norm & Learning Rate")
+ax.plot(train_df["step"], train_df["proj_norm"], label="Train Proj Norm")
+ax.plot(eval_df["step"], eval_df["proj_norm"], label="Eval Proj Norm")
+ax.set_title("Proj Norm & Learning Rate")
 ax.set_xlabel("Step")
-ax.set_ylabel("Audio Norm")
-
+ax.set_ylabel("Proj Norm")
 # Learning rate (right axis)
 ax2 = ax.twinx()
 if "lr_proj" in train_df.columns:
