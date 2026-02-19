@@ -64,6 +64,7 @@ class Trainer:
         self.accum_steps = accum_steps
         self.output_dir = output_dir
         self.json_logger = json_logger
+
         os.makedirs(output_dir, exist_ok=True)
 
         self.tokenizer = self.model.tokenizer
@@ -73,10 +74,9 @@ class Trainer:
         self.dtype = param.dtype
         logger.info(f"Model parameters are on device={self.device} with dtype={self.dtype}")
 
-        # -----------------------
+        # -----------------------------
         # Sampler & DataLoader
-        # -----------------------
-        
+        # -----------------------------        
         self.train_sampler = BatchedBucketSampler(train_dataset, batch_size=batch_size, shuffle=True)
         self.train_loader = DataLoader(train_dataset, batch_sampler=self.train_sampler, collate_fn=collate_fn)
         logger.info(f"Initialized Sampler and DataLoader for train with batch_size={batch_size} with {len(self.train_dataset)} samples, {len(self.train_loader)} batches")
@@ -91,9 +91,9 @@ class Trainer:
         self.eval_loader = DataLoader(eval_dataset, batch_sampler=self.eval_sampler, collate_fn=collate_fn)
         logger.info(f"Initialized Sampler and DataLoader for eval with batch_size={batch_size} with {len(self.eval_dataset)} samples")
 
-        # -----------------------
+        # -----------------------------
         # Optimizer & Scheduler & step
-        # -----------------------
+        # -----------------------------
         # lr_proj= config['optim']['lr_proj']
         self.optimizer = torch.optim.AdamW([{"params": self.model.projector.parameters(), "lr": lr_proj}])
         logger.info(f"Initialized AdamW optimizer with lr_proj={lr_proj}")
@@ -146,9 +146,9 @@ class Trainer:
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
-    # -----------------------
+    # -----------------------------
     # Save checkpoint
-    # -----------------------
+    # -----------------------------
     def save_checkpoint(self, step=None, prefix="checkpoint"):
         step_str = f"_step{step}" if step is not None else ""
         ckpt_path = os.path.join(self.output_dir, f"{prefix}{step_str}")
@@ -174,9 +174,9 @@ class Trainer:
         # remove older checkpoints, keep only top N
         remove_old_checkpoints(step, self.output_dir, prefix, self.save_best_n)
 
-    # -----------------------
+    # -----------------------------
     # Training loop
-    # -----------------------
+    # -----------------------------
     def train(self):
         logger.info("Start training")
 
@@ -221,7 +221,7 @@ class Trainer:
                         accum['loss_scale'] += outputs["loss_scale"]
                     if outputs.get("loss_contrast") is not None:
                         accum['loss_contrast'] += outputs["loss_contrast"]
-                    accum['audio_norm'] += outputs["audio_norm"]
+                    accum['proj_norm'] += outputs["proj_norm"]
                     accum['text_norm'] += outputs["text_norm"]
                     accum['n_batchs'] += 1
     
@@ -276,9 +276,9 @@ class Trainer:
 
         logger.info("End training")
 
-    # -----------------------
+    # -----------------------------
     # Evaluation
-    # -----------------------
+    # -----------------------------
     @torch.no_grad()
     def evaluate(
         self,
@@ -315,7 +315,7 @@ class Trainer:
                 accum['loss_scale'] += outputs["loss_scale"]
             if outputs.get("loss_contrast") is not None:
                 accum['loss_contrast'] += outputs["loss_contrast"]
-            accum['audio_norm'] += outputs["audio_norm"]
+            accum['proj_norm'] += outputs["proj_norm"]
             accum['text_norm'] += outputs["text_norm"]
             accum['n_batchs'] += 1
 
@@ -326,9 +326,9 @@ class Trainer:
         self.model.train()
 
 
-    # -----------------------
+    # -----------------------------
     # Logging 
-    # -----------------------
+    # -----------------------------
     def log_fn(self, accum, is_eval=False):
 
         elapsed = (datetime.now() - self.start_time).total_seconds()
@@ -344,7 +344,7 @@ class Trainer:
         loss_scale = accum['loss_scale'] / max(1, accum['n_batchs']) if accum.get('loss_scale') is not None else None
         loss_contrast = accum['loss_contrast'] / max(1, accum['n_batchs']) if accum.get('loss_contrast') is not None else None
 
-        audio_norm = accum['audio_norm'] / max(1, accum['n_batchs'])
+        proj_norm = accum['proj_norm'] / max(1, accum['n_batchs'])
         text_norm = accum['text_norm'] / max(1, accum['n_batchs'])
         scale_val = accum.get('scale', None)
         proj_grad_norm = accum.get('proj_grad_norm', None)
@@ -362,8 +362,8 @@ class Trainer:
 
         log_str += f"lr_proj={self.optimizer.param_groups[0]['lr']:.3e} | "
 
-        if audio_norm is not None:
-            log_str += f"‖audio‖={audio_norm:.2f} | "
+        if proj_norm is not None:
+            log_str += f"‖proj‖={proj_norm:.2f} | "
         if text_norm is not None:
             log_str += f"‖text‖={text_norm:.2f} | "
         if scale_val is not None:
@@ -385,7 +385,7 @@ class Trainer:
                 loss_mse_pad=loss_mse_pad,
                 loss_ce=loss_ce,
                 loss_scale=loss_scale,
-                audio_norm=audio_norm, 
+                proj_norm=proj_norm, 
                 text_norm=text_norm,
                 lr_proj=self.optimizer.param_groups[0]['lr'],
                 proj_grad_norm=proj_grad_norm,

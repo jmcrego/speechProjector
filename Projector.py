@@ -200,6 +200,11 @@ class Projector(nn.Module):
 
         return x, mask
 
+    def count_pars(self):
+        total = sum(p.numel() for p in self.parameters())
+        trainable = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        return total, trainable
+
 
 
 if __name__ == "__main__":

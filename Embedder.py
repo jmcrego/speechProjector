@@ -86,6 +86,12 @@ class Embedder(nn.Module):
         return frames, frames_mask
 
 
+    def count_pars(self):
+        total = sum(p.numel() for p in self.parameters())
+        trainable = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        return total, trainable
+
+
 if __name__ == "__main__":
     import argparse
     import time

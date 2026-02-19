@@ -30,15 +30,16 @@ if __name__ == "__main__":
     parser.add_argument("--eval", nargs="+", default=None, help="Evaluation samples.jsonl files")
     # opt pars
     parser.add_argument("--lr_proj", type=float, default=1e-4, help="Learning rate for projector (the only part we train)")
-    parser.add_argument("--warmup_steps", type=int, default=5000, help="Number of warmup steps for learning rate scheduler (should be ~10% of total steps)")
+    parser.add_argument("--warmup_steps", type=int, default=5000, help="Number of warmup steps for learning rate scheduler (use ~10% of total steps)")
     parser.add_argument("--max_steps", type=int, default=1000000, help="Maximum number of training steps (0 for no limit)")
     parser.add_argument("--max_epochs", type=int, default=0, help="Maximum number of training epochs (0 for no limit)")
     parser.add_argument("--alpha", type=float, default=0.5, help="MSE loss = alpha * MSE_txt + (1 - alpha) * MSE_pad")
     parser.add_argument("--weight_mse", type=float, default=0., help="Weight of MSE loss (0 to disable it)")
     parser.add_argument("--weight_cos", type=float, default=0., help="Weight of cosine loss (0 to disable it)")
     parser.add_argument("--weight_scale", type=float, default=0., help="Weight of scale loss (0 to disable it)")
-    parser.add_argument("--weight_ce", type=float, default=0., help="Weight of cross-entropy loss (0 to disable it)")
-    parser.add_argument("--temp_ce", type=float, default=1.0, help="Temperature for cross-entropy loss")
+    parser.add_argument("--weight_ce", type=float, default=0., help="Weight of cross-entropy loss over transcription embeddings (0 to disable it)")
+    parser.add_argument("--temp_ce", type=float, default=1.0, help="Temperature for ce loss")
+    parser.add_argument("--weight_CE", type=float, default=0., help="Weight of cross-entropy loss over LLM output embeddings (0 to disable it)")
     parser.add_argument("--weight_contrast", type=float, default=0., help="Weight of contrastive loss (0 to disable it)")
     parser.add_argument("--temp_contrast", type=float, default=1.0, help="Temperature for contrastive loss")
     # train pars
@@ -59,10 +60,23 @@ if __name__ == "__main__":
     assert args.weight_scale >= 0, "Weight scale must be >= 0"
     assert args.weight_ce >= 0, "Weight CE must be >= 0"
     assert args.weight_contrast >= 0, "Weight contrast must be >= 0"
-    assert args.weight_mse > 0 or args.weight_cos > 0 or args.weight_scale > 0 or args.weight_ce > 0 or args.weight_contrast > 0, "At least one loss must have weight > 0"
+    assert args.weight_CE >= 0, "Weight CE must be >= 0"
+    assert args.weight_mse > 0 or args.weight_cos > 0 or args.weight_scale > 0 or args.weight_ce > 0 or args.weight_contrast > 0 or args.weight_CE > 0, "At least one loss must have weight > 0"
 
     if args.max_steps == 0 and args.max_epochs == 0:
         raise ValueError("At least one of max_steps or max_epochs must be > 0 to define a stopping criterion for training")
+
+    weights = {
+        'alpha': args.alpha,
+        'mse': args.weight_mse,
+        'cos': args.weight_cos,
+        'scale': args.weight_scale,
+        'ce': args.weight_ce,
+        'temp_ce': args.temp_ce,
+        'CE': args.weight_CE,
+        'contrast': args.weight_contrast,
+        'temp_contrast': args.temp_contrast,
+    }
 
     # Create output directory if needed
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
@@ -98,14 +112,7 @@ if __name__ == "__main__":
 
     model = AudioLLM(
         config=config,
-        alpha=args.alpha,
-        weight_mse=args.weight_mse,
-        weight_cos=args.weight_cos,
-        weight_scale=args.weight_scale,
-        weight_ce=args.weight_ce,
-        temp_ce=args.temp_ce,
-        weight_contrast=args.weight_contrast,
-        temp_contrast=args.temp_contrast,
+        weights=weights,
         device=device,
         dtype=dtype 
     )
