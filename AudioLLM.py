@@ -163,7 +163,7 @@ class AudioLLM(torch.nn.Module):
             loss += self.weights.get('scale', 0) * loss_scale
 
         # --- Cross-entropy loss: handles token-level embedding prediction ---
-        logits = torch.matmul(proj_embs[txt_mask], self.llm_embedder.weight.t()) / self.weights.get('temp_ce', 1.0) # logits: [N_txt, D] x [D, V] -> [N_txt, V]
+        logits = torch.matmul(proj_embs[txt_mask], self.llm.embedder.weight.t()) / self.weights.get('temp_ce', 1.0) # logits: [N_txt, D] x [D, V] -> [N_txt, V]
         loss_ce = F.cross_entropy(logits, target_ids[txt_mask], reduction="mean")
         dout['loss_ce'] = loss_ce.item()
         if self.weights.get('ce', 0) > 0:
