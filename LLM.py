@@ -10,7 +10,7 @@ import gc
 logger = logging.getLogger("LLM")
 
 class LLM(torch.nn.Module):
-    def __init__(self, config, config_lora, only_embedding_layer=False):
+    def __init__(self, config, config_lora, load_only_embedding_layer=False):
         """
         Wrapper for the base LLM
         """
@@ -35,7 +35,7 @@ class LLM(torch.nn.Module):
         # =====================================================
         # MODE 1 — Embedding-only mode
         # =====================================================
-        if only_embedding_layer:
+        if load_only_embedding_layer:
 
             # Load BASE model only (no LM head) on CPU
             tmp_model = AutoModel.from_pretrained(llm_path, low_cpu_mem_usage=True, device_map="cpu")
@@ -90,7 +90,7 @@ class LLM(torch.nn.Module):
             return self.model(*args, **kwargs)
         else:
             raise RuntimeError(
-                "LLM was loaded with only_embedding_layer=True. "
+                "LLM was loaded with load_only_embedding_layer=True. "
                 "Full forward pass is unavailable."
             )
 

@@ -47,8 +47,8 @@ class AudioLLM(torch.nn.Module):
         self.projector = Projector(config['projector'], audio_embedding_dim=self.audio_embedding_dim, llm_embedding_dim=self.llm_embedding_dim)
         self.projector.to(device=device, dtype=dtype)
 
-        # load full LLM during inference or if CE loss is used during training, otherwise load only embedding layer to save memory
-        self.llm = LLM(config['llm'], config_lora=None, device=device, dtype=dtype, is_infer=is_infer, only_embedding_layer=not is_infer or weights.get('CE', 0.) == 0.) 
+        # load only the LLM embedding layer during training and when CE loss is not used, to save GPU memory, otherwise load the full LLM
+        self.llm = LLM(config['llm'], config_lora=None, device=device, dtype=dtype, is_infer=is_infer, load_only_embedding_layer=not is_infer and weights.get('CE', 0.) == 0.) 
         self.llm.to(device=device, dtype=dtype)
 
         self.audio_token = config["llm"]["audio_token"]
