@@ -206,16 +206,17 @@ class Dataset(Dataset):
                 add_special_tokens=False, 
                 return_attention_mask=False,
             )
+            
+            n_padded_tokens = (target_ids == tokenizer.pad_token_id).sum().item()
             target_ids = target_ids.input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
-            if target_ids.size(0) == 0:
+            if target_ids.size(0) == 0 or n_padded_tokens == target_ids.size(0):
                 #logger.warning(f"Skipping empty target_ids for sample idx={idx}")
                 n_empty += 1
                 continue
 
-            n_padded_tokens = (target_ids == tokenizer.pad_token_id).sum().item()
             if n_padded_tokens == 0:
-                logger.warning(f"Skipping sample idx={idx} with no padding in target_ids (len >= seq_len={seq_len})")
+                #logger.warning(f"Skipping sample idx={idx} with no padding in target_ids (len >= seq_len={seq_len})")
                 n_maxlen += 1
                 continue
 
