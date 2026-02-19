@@ -219,6 +219,8 @@ class Trainer:
                         accum['loss_cos'] += outputs["loss_cos"]
                     if outputs.get("loss_ce") is not None:
                         accum['loss_ce'] += outputs["loss_ce"]
+                    if outputs.get("loss_CE") is not None:
+                        accum['loss_CE'] += outputs["loss_CE"]
                     if outputs.get("loss_scale") is not None:
                         accum['loss_scale'] += outputs["loss_scale"]
                     if outputs.get("loss_contrast") is not None:
@@ -315,6 +317,8 @@ class Trainer:
                 accum['loss_cos'] += outputs["loss_cos"]
             if outputs.get("loss_ce") is not None:
                 accum['loss_ce'] += outputs["loss_ce"]
+            if outputs.get("loss_CE") is not None:
+                accum['loss_CE'] += outputs["loss_CE"]
             if outputs.get("loss_scale") is not None:
                 accum['loss_scale'] += outputs["loss_scale"]
             if outputs.get("loss_contrast") is not None:
@@ -345,6 +349,7 @@ class Trainer:
         loss_mse_pad = accum['loss_mse_pad'] / max(1, accum['n_batchs']) if accum.get('loss_mse_pad') is not None else None
         loss_cos = accum['loss_cos'] / max(1, accum['n_batchs']) if accum.get('loss_cos') is not None else None
         loss_ce = accum['loss_ce'] / max(1, accum['n_batchs']) if accum.get('loss_ce') is not None else None
+        loss_CE = accum['loss_CE'] / max(1, accum['n_batchs']) if accum.get('loss_CE') is not None else None
         loss_scale = accum['loss_scale'] / max(1, accum['n_batchs']) if accum.get('loss_scale') is not None else None
         loss_contrast = accum['loss_contrast'] / max(1, accum['n_batchs']) if accum.get('loss_contrast') is not None else None
 
@@ -360,6 +365,7 @@ class Trainer:
         log_str += f"ℒ_mse_txt={loss_mse_txt:.5f} | " if loss_mse_txt is not None else ""
         log_str += f"ℒ_mse_pad={loss_mse_pad:.5f} | " if loss_mse_pad is not None else ""
         log_str += f"ℒ_cos={loss_cos:.5f} | " if loss_cos is not None else ""
+        log_str += f"ℒ_CE={loss_CE:.5f} | " if loss_CE is not None else ""
         log_str += f"ℒ_ce={loss_ce:.5f} | " if loss_ce is not None else ""
         log_str += f"ℒ_scale={loss_scale:.5f} | " if loss_scale is not None else ""
         log_str += f"ℒ_contrast={loss_contrast:.5f} | " if loss_contrast is not None else ""
@@ -384,10 +390,11 @@ class Trainer:
                 step=self.step, 
                 loss=loss, 
                 loss_cos=loss_cos,
-                loss_contrast=loss_contrast,
                 loss_mse_txt=loss_mse_txt,
                 loss_mse_pad=loss_mse_pad,
+                loss_CE=loss_CE,
                 loss_ce=loss_ce,
+                loss_contrast=loss_contrast,
                 loss_scale=loss_scale,
                 proj_norm=proj_norm, 
                 text_norm=text_norm,
