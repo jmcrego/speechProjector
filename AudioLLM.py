@@ -171,7 +171,17 @@ class AudioLLM(torch.nn.Module):
 
         # --- Cross-entropy loss over LLM output embeddings: handles token-level prediction at LLM output level (after generation) ---
         if self.weights.get('CE', 0) > 0:
-            formatted_batch = self.format_batch(proj_embs, prompt_ids, target_ids=target_ids)
+            # in target_ids sequences replace the left-most <pad> token by an <eos> token
+            #  to ensure the model learns to predict the end of the sequence and does not keep generating padding tokens
+            # the remaining <pad> tokens after the first one can be left as they will be ignored
+            targets_ids_ce = target_ids.clone()
+            for i in range(target_ids.size(0)):
+                pad_positions = (target_ids[i] == self.llm.tokenizer.pad_token_id).nonzero(as_tuple=True)[0]
+                if len(pad_positions) > 0:
+                    first_pad_pos = pad_positions[0].item()
+                    targets_ids_ce[i, first_pad_pos] = self.llm.tokenizer.eos_token_id
+
+            formatted_batch = self.format_batch(proj_embs, prompt_ids, target_ids=targets_ids_ce)
             outputs = self.llm.model(
                 inputs_embeds=formatted_batch['inputs_embeds'],
                 attention_mask=formatted_batch['attention_mask'],
