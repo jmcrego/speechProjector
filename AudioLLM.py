@@ -186,7 +186,7 @@ class AudioLLM(torch.nn.Module):
 
 
     def format_batch(self, proj_embs, prompt_ids, target_ids=None):
-        device = self.llm.device
+        device = next(self.llm.parameters()).device 
         dtype = next(self.llm.parameters()).dtype
         B = prompt_ids.size(0)
 
