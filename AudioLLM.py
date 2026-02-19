@@ -43,6 +43,8 @@ class AudioLLM(torch.nn.Module):
             self.audio_embedder = Embedder(config['audio'])
             self.audio_embedder.to(device=device, dtype=dtype)
             self.audio_embedder.freeze() # audio embedder always freezed
+        else:
+            self.audio_embedder = None
 
         ### load Projector ###
         self.projector = Projector(config['projector'], audio_embedding_dim=self.audio_embedding_dim, llm_embedding_dim=self.llm_embedding_dim)
