@@ -138,31 +138,31 @@ class AudioLLM(torch.nn.Module):
             loss += self.weights.get('cos', 0) * loss_cos
 
         # ----- Contrastive loss: directional alignment with temperature scaling -----
-        proj_embs_norm = F.normalize(proj_embs, dim=-1)
-        text_embs_norm = F.normalize(text_embs, dim=-1)
-        B, T, D = proj_embs_norm.shape
-        # [B, T, T]
-        logits = torch.matmul(proj_embs_norm, text_embs_norm.transpose(1, 2))
-        logits = logits / self.weights.get('temp_contrast', 1.0)
-        # Build per-token targets
-        targets = torch.arange(T, device=logits.device).unsqueeze(0).expand(B, T)
-        # Flatten
-        logits = logits.reshape(B * T, T)
-        targets = targets.reshape(B * T)
-        # Flatten mask
-        valid_mask = txt_mask.reshape(B * T)
-        # Keep only valid tokens
-        logits = logits[valid_mask]
-        targets = targets[valid_mask]
-        loss_contrast = F.cross_entropy(logits, targets)
-        dout['loss_contrast'] = loss_contrast.item()
         if self.weights.get('contrast', 0) > 0:
+            proj_embs_norm = F.normalize(proj_embs, dim=-1)
+            text_embs_norm = F.normalize(text_embs, dim=-1)
+            B, T, D = proj_embs_norm.shape
+            # [B, T, T]
+            logits = torch.matmul(proj_embs_norm, text_embs_norm.transpose(1, 2))
+            logits = logits / self.weights.get('temp_contrast', 1.0)
+            # Build per-token targets
+            targets = torch.arange(T, device=logits.device).unsqueeze(0).expand(B, T)
+            # Flatten
+            logits = logits.reshape(B * T, T)
+            targets = targets.reshape(B * T)
+            # Flatten mask
+            valid_mask = txt_mask.reshape(B * T)
+            # Keep only valid tokens
+            logits = logits[valid_mask]
+            targets = targets[valid_mask]
+            loss_contrast = F.cross_entropy(logits, targets)
+            dout['loss_contrast'] = loss_contrast.item()
             loss += self.weights.get('contrast', 0) * loss_contrast
 
         # ----- scale loss: handles scale differences -----
-        loss_scale = ((proj_embs.norm(dim=-1) - text_embs.norm(dim=-1))**2)[txt_mask].mean()
-        dout['loss_scale'] = loss_scale.item()
         if self.weights.get('scale', 0) > 0:
+            loss_scale = ((proj_embs.norm(dim=-1) - text_embs.norm(dim=-1))**2)[txt_mask].mean()
+            dout['loss_scale'] = loss_scale.item()
             loss += self.weights.get('scale', 0) * loss_scale
 
         # --- Cross-entropy loss: handles token-level embedding prediction ---
