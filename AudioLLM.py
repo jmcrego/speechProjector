@@ -77,7 +77,7 @@ class AudioLLM(torch.nn.Module):
     # ========================================================
     # Forward (training)
     # ========================================================
-    def forward(self, target_ids, pt_paths, offsets, prompt_ids=None, reference_ids=None):
+    def forward(self, target_ids, pt_paths, offsets, prompt_ids=None):
         # prompt_ids and reference_ids are only needed if CE loss over LLM output embeddings is used (weights['CE'] > 0)
         # otherwise, they can be ignored and set to None to save memory and computation during training
         
@@ -171,7 +171,7 @@ class AudioLLM(torch.nn.Module):
 
         # --- Cross-entropy loss over LLM output embeddings: handles token-level prediction at LLM output level (after generation) ---
         if self.weights.get('CE', 0) > 0:
-            formatted_batch = self.format_batch(proj_embs, prompt_ids, target_ids=reference_ids)
+            formatted_batch = self.format_batch(proj_embs, prompt_ids, target_ids=target_ids)
             outputs = self.llm.model(
                 inputs_embeds=formatted_batch['inputs_embeds'],
                 attention_mask=formatted_batch['attention_mask'],

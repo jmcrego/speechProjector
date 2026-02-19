@@ -16,6 +16,7 @@ logger = logging.getLogger("Dataset")
 
 def collate_fn(batch):
     target_ids = torch.stack([x["target_ids"] for x in batch], dim=0)  # (B, T)
+    prompt_ids = torch.stack([x["prompt_ids"] for x in batch], dim=0)  # (B, T)
     pt_paths = [x["pt_path"] for x in batch] # List[str] (B,)
     offsets = [x["offset"] for x in batch] # List[int] (B,)
 
@@ -23,6 +24,7 @@ def collate_fn(batch):
         "pt_paths": pt_paths,         # List[str] (B,)
         "offsets": offsets,           # (B,)
         "target_ids": target_ids,     # (B, T)
+        "prompt_ids": prompt_ids,     # (B, T)
     }
 
 
@@ -90,6 +92,7 @@ class Dataset(Dataset):
         jsonl_paths: [str],  #string or list of strings with expand characters like "/my/path/*/??/samples.jsonl"
         tokenizer,
         seq_len: int,
+        audio_token: str = "<extra_id_0>",
         n_samples: int = 0, # if >0 select randomly n samples from the dataset (deterministic with seed)
         seed: int = 42,
     ):
@@ -150,10 +153,12 @@ class Dataset(Dataset):
             with open(f_jsonl, "r", encoding="utf-8") as f:
                 for line in tqdm(f, desc=f"Reading {f_jsonl}", unit=" lines"):
                     entry = json.loads(line)
+                    lang = entry.get("slang", "English")
                     sample = {
                         "pt_path": entry["pt_path"] if Path(entry["pt_path"]).is_absolute() else Path(f_jsonl).parent / entry["pt_path"],
                         "offset": entry["offset"],
                         "target": entry["text"],
+                        "prompt": f"Given:\n{audio_token}\nRepeat the above {lang} text:\n"
                     }
                     curr_samples.append(sample)
                 if n_samples > 0 and n_samples < len(curr_samples):
@@ -172,7 +177,7 @@ class Dataset(Dataset):
 
             ### tokenize with padding to max_length=seq_len (projector output length) and truncation=False 
             ### discard samples longer than seq_len
-            toks = tokenizer(
+            target_ids = tokenizer(
                 sample['target'], 
                 return_tensors="pt", 
                 padding="max_length", 
@@ -181,8 +186,7 @@ class Dataset(Dataset):
                 add_special_tokens=False, 
                 return_attention_mask=False,
             )
-
-            target_ids = toks.input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
+            target_ids = target_ids.input_ids[0].long() #tensor([ t₁, t₂, t₃, … ], dtype=torch.long)
 
             if target_ids.size(0) == 0:
                 #logger.warning(f"Skipping empty target_ids for sample idx={idx}")
@@ -194,7 +198,19 @@ class Dataset(Dataset):
                 n_maxlen += 1
                 continue
 
+            prompt_ids = tokenizer(
+                sample['prompt'], 
+                return_tensors="pt", 
+                padding="max_length", 
+                max_length=seq_len,
+                truncation=False, 
+                add_special_tokens=False, 
+                return_attention_mask=False,
+            )
+            prompt_ids = prompt_ids.input_ids[0].long() #tensor([ p₁, p₂, p₃, … ], dtype=torch.long)
+
             sample["target_ids"] = target_ids
+            sample["prompt_ids"] = prompt_ids
 
             self.samples.append(sample)
 

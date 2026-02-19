@@ -67,7 +67,7 @@ class Trainer:
 
         os.makedirs(output_dir, exist_ok=True)
 
-        self.tokenizer = self.model.tokenizer
+        self.tokenizer = self.model.llm.tokenizer
 
         param = next(self.model.parameters())
         self.device = param.device
@@ -196,6 +196,8 @@ class Trainer:
                 offsets = batch["offsets"] # list of (start, end) frame offsets for each sample in the batch (for slicing audio embeddings)
                 target_ids = batch["target_ids"] # [B, L_max] torch.long token ids for ASR transcription (padded to seq_len)
                 target_ids = target_ids.to(self.device)
+                prompt_ids = batch["prompt_ids"] # [B, L_prompt] torch.long token ids for prompt (padded to seq_len)
+                prompt_ids = prompt_ids.to(self.device)
 
                 self.batch += 1
                 self.sample += batch["target_ids"].size(0)
@@ -204,7 +206,7 @@ class Trainer:
                 # this with disables automatic mixed precision for everything inside that context.
                 with torch.amp.autocast(device_type='cuda', dtype=self.dtype, enabled=(self.device.type == "cuda")):
                     # Pass input_embeds instead of input_ids to the model, along with target_ids and attention_mask for loss computation
-                    outputs = self.model(target_ids, pt_paths, offsets) 
+                    outputs = self.model(target_ids, pt_paths, offsets, prompt_ids=prompt_ids)
                     raw_loss = outputs["loss"]
                     loss = raw_loss / self.accum_steps                    
 
@@ -295,12 +297,14 @@ class Trainer:
             offsets = batch["offsets"] # list of (start, end) frame offsets for each sample in the batch (for slicing audio embeddings)
             target_ids = batch["target_ids"] # [B, L_max] torch.long token ids for ASR transcription (padded to seq_len)
             target_ids = target_ids.to(self.device)
+            prompt_ids = batch["prompt_ids"] # [B, L_prompt] torch.long token ids for prompt (padded to seq_len)
+            prompt_ids = prompt_ids.to(self.device)
 
             # Forward pass
             # this with disables automatic mixed precision for everything inside that context.
             with torch.amp.autocast(device_type='cuda', dtype=self.dtype, enabled=(self.device.type == "cuda")):
                 # Pass input_embeds instead of input_ids to the model, along with target_ids and attention_mask for loss computation
-                outputs = self.model(target_ids, pt_paths, offsets) 
+                outputs = self.model(target_ids, pt_paths, offsets, prompt_ids=prompt_ids)
 
             accum['loss'] += outputs["loss"].item()
             if outputs.get("loss_mse_txt") is not None:
