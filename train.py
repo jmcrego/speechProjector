@@ -43,7 +43,7 @@ if __name__ == "__main__":
     parser.add_argument("--weight_contrast", type=float, default=0., help="Weight of contrastive loss (0 to disable it)")
     parser.add_argument("--temp_contrast", type=float, default=1.0, help="Temperature for contrastive loss")
     # train pars
-    parser.add_argument("--batch_size", type=int, default=128, help="Number of samples in a batch")
+    parser.add_argument("--batch_size", type=int, default=8, help="Number of samples in a batch")
     parser.add_argument("--accum_steps", type=int, default=1, help="Accumulate this many batchs before optimizing")
     parser.add_argument("--eval_every", type=int, default=1000, help="Evaluation (and saving checkpoint) after this many optimization steps")
     parser.add_argument("--log_every", type=int, default=100, help="Logging after this many optimization steps")

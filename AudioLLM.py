@@ -140,7 +140,7 @@ class AudioLLM(torch.nn.Module):
         B, T, D = proj_embs_norm.shape
         # [B, T, T]
         logits = torch.matmul(proj_embs_norm, text_embs_norm.transpose(1, 2))
-        logits = logits / self.temp_contrast
+        logits = logits / self.weights.get('temp_contrast', 1.0)
         # Build per-token targets
         targets = torch.arange(T, device=logits.device).unsqueeze(0).expand(B, T)
         # Flatten
