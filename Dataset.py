@@ -210,12 +210,12 @@ class Dataset(Dataset):
             length = target_ids.size(0)
 
             if length >= seq_len:
-                logger.warning(f"Skipping sample idx={idx} with target_ids length {length} longer or equal than seq_len={seq_len}")
+                logger.warning(f"\nSkipping sample idx={idx} with target_ids length {length} longer or equal than seq_len={seq_len}")
                 n_maxlen += 1
                 continue
 
             if length == 0:
-                logger.warning(f"Skipping sample idx={idx} with empty target_ids after tokenization")
+                logger.warning(f"\nSkipping sample idx={idx} with empty target_ids after tokenization")
                 n_empty += 1
                 continue
 
