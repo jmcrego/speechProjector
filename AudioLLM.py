@@ -57,7 +57,10 @@ class AudioLLM(torch.nn.Module):
             load_only_embedding_layer=not is_infer and weights.get('CE', 0.) == 0.
         ) 
         self.llm.to(device=device, dtype=dtype)
-        self.llm.freeze() # freeze LLM 
+        if not is_infer and False: #unfreeze also if lora is activated
+            self.llm.unfreeze_lora()
+        else:
+            self.llm.freeze()
 
         self.audio_token = config["llm"]["audio_token"]
         self.audio_token_id = self.llm.tokenizer.convert_tokens_to_ids(self.audio_token)
