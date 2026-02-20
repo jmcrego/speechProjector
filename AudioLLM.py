@@ -177,10 +177,19 @@ class AudioLLM(torch.nn.Module):
 
         # ----- Accuracy metric for pad prediction: how well the model identifies <pad> token for the non-txt audio projected embeddings ---
         logits_all = torch.matmul(proj_embs, self.llm.embedder.weight.t())
+
+        # indices of the first predicted pad token in each sequence
+        first_pad_pos_pre = (logits_all.argmax(dim=-1) == pad_id).float().argmax(dim=1) # [B]
+        # indices of the first reference pad token in each sequence
+        first_pad_pos_ref = (target_ids == pad_id).float().argmax(dim=1) # [B]
+        # average distance between predicted and reference pad positions
+        pad_pos_distance = (first_pad_pos_pre - first_pad_pos_ref).abs().float().mean()
+        dout['pos_pad'] = pad_pos_distance.item()
+
+        # accuracy of pad prediction over all tokens: percentage of tokens where the model correctly predicts whether it's a pad token or not, averaged over the batch
         pred_pad_all = logits_all.argmax(dim=-1) == pad_id # [B, T], True where model predicts pad token
         ref_pad_all = target_ids == pad_id # [B, T], True where reference has pad token
-        # count correct predictions over all tokens
-        n_correct = (pred_pad_all == ref_pad_all).float().sum()
+        n_correct = (pred_pad_all == ref_pad_all).float().sum() # count correct predictions over all tokens
         acc_pad_all = n_correct / ref_pad_all.numel()
         dout['acc_pad'] = acc_pad_all.item()
 
