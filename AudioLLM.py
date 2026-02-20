@@ -55,10 +55,11 @@ class AudioLLM(torch.nn.Module):
             self.projector.freeze() # freeze projector for inference
 
         # load only the LLM embedding layer during training and when CE loss is not used, to save GPU memory, otherwise load the full LLM
+        load_only_embedding_layer = (not is_infer) and weights.get('CE', 0.) == 0.
         self.llm = LLM(
             config['llm'], 
             config_lora=None, 
-            load_only_embedding_layer=not is_infer and weights.get('CE', 0.) == 0.
+            load_only_embedding_layer=load_only_embedding_layer
         ) 
         self.llm.to(device=device, dtype=dtype)
         if not is_infer and False: #unfreeze also if lora is activated
