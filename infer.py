@@ -61,7 +61,8 @@ if __name__ == "__main__":
 
     prompt = (f"Input:\n<extra_id_0>\nRepeat the above {args.lang} Input text:\n")
     prompt = (f"Input:\n<extra_id_0>\nTranslate the above {args.lang} Input text into French:\n")
-    prompt = (f"Input:\n<extra_id_0>\nQuestion: Where are gathering the group of people? (write only the place)\nAnswer:\n")
+    prompt = (f"Input:\n<extra_id_0>\nQuestion: Is the above Input text written in German?\nAnswer:\n")
+    prompt = (f"Input:\n<extra_id_0>\nQuestion: Where are gathering the group of people of the above {args.lang} text? (write only the place)\nAnswer:\n")
 
     # --------------------------------------------------
     # Load model
@@ -69,7 +70,6 @@ if __name__ == "__main__":
     t = time.time()
     model = AudioLLM(config=config, device=device, dtype=dtype, is_infer=True)
     logger.debug(f"Loading model took {time.time() - t:.2f} sec")
-
 
     # --------------------------------------------------
     # Inference
