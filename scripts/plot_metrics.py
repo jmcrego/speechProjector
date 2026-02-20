@@ -25,7 +25,7 @@ train_df = df[df["split"] == "train"].copy()
 eval_df  = df[df["split"] == "eval"].copy()
 
 # ---- Identify all loss columns with at least some non-null values ----
-loss_cols = [c for c in df.columns if c.startswith("loss") and (
+loss_cols = [c for c in df.columns if (c.startswith("loss") or c.startswith("acc")) and (
     train_df[c].notnull().any() or eval_df[c].notnull().any()
 )]
 
