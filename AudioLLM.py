@@ -268,8 +268,7 @@ class AudioLLM(torch.nn.Module):
             "labels": labels,
         }
 
-
-    
+   
 
     def generate(
         self, 
@@ -295,27 +294,21 @@ class AudioLLM(torch.nn.Module):
         Returns:
             generated_texts (List[str]): list of generated texts
         """
-        if '<extra_id_0>' not in prompt:        
-            prompt_ids = self.llm.tokenizer(prompt, return_tensors="pt").input_ids.to(self.projector.linear.weight.device) # move to same device as projector for generation
 
-            outputs = self.llm.generate(
-                input_ids=prompt_ids,
-                max_new_tokens=max_new_tokens,
-                do_sample=(temperature > 0),
-                temperature=temperature if temperature > 0 else None,
-                top_p=top_p if temperature > 0 else None,
-                no_repeat_ngram_size = no_repeat_ngram_size,
-                repetition_penalty = repetition_penalty,
-                pad_token_id = self.llm.tokenizer.pad_token_id,
-                eos_token_id = self.llm.tokenizer.eos_token_id,
-                use_cache=True,
-                return_dict_in_generate=True,
-                output_scores=True,
-            )
-            return self.llm.tokenizer.batch_decode(outputs.sequences, skip_special_tokens=False)
+        pad_id = self.llm.tokenizer.pad_token_id
+        eos_id = self.llm.tokenizer.eos_token_id
+        
+        input_embeds = self.audio_embedder(audio_paths) # [B, T, D]
+        assert input_embeds.dim() == 3, f"Expected input_embeds to have 3 dimensions [B, T, D], got {input_embeds.shape}"
+ 
+        proj_embeds, _ = self.projector(input_embeds) # [B, S_max, D_llm]
+        assert proj_embeds.dim() == 3, f"Expected proj_embeds to have 3 dimensions [B, S_max, D], got {proj_embeds.shape}"
 
-        prompt_ids = self.llm.tokenizer(prompt, return_tensors="pt").input_ids #.to(self.projector.linear.weight.device) # move to same device as projector for generation
-        formatted_batch = self.format_batch(audio_paths, prompt_ids)
+        assert proj_embeds.shape[2] == self.llm_embedding_dim, f"Expected D={self.llm_embedding_dim}, got {proj_embeds.shape[2]}"
+
+
+        prompt_ids = self.llm.tokenizer(prompt, return_tensors="pt").input_ids
+        formatted_batch = self.format_batch(proj_embeds, prompt_ids)
 
         outputs = self.llm.generate(
             inputs_embeds=formatted_batch["inputs_embeds"],

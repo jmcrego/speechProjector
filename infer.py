@@ -16,25 +16,6 @@ from AudioLLM import AudioLLM
 
 logger = logging.getLogger("infer")
 
-def inference(model, audio_paths, prompt, max_new_tokens=256, temperature=0.7, top_p=0.9, no_repeat_ngram_size=0, repetition_penalty=1.1):
-
-    model.eval()
-
-    t = time.time()
-    with torch.no_grad():
-        output = model.generate(
-            audio_paths=[audio_paths] if isinstance(audio_paths, str) else audio_paths,
-            prompt=prompt,
-            max_new_tokens=max_new_tokens,
-            temperature=temperature,
-            top_p=top_p,
-            no_repeat_ngram_size = no_repeat_ngram_size, #dangerous for ASR/STT, speech allow repetitions
-            repetition_penalty = repetition_penalty, #good for ASR/STT, but bad for QA
-        )
-
-    logger.debug(f"Generation took {time.time() - t:.2f} sec")
-
-    return output
 
 if __name__ == "__main__":
 
@@ -44,8 +25,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--config", type=str, required=True, help="Model config file")
     parser.add_argument("--audio_path", type=str, required=True, help="Audio file/s")
-    parser.add_argument("--slang", type=str, required=True, help="Audio language")
-    parser.add_argument("--tlang", type=str, required=True, help="Target language")
+    parser.add_argument("--lang", type=str, required=True, help="Audio language")
     # parser.add_argument("--batch_size", type=int, default=1, help="Batch size")
     # parser.add_argument("--max_seq_len", type=int, default=1024, help="Maximum sequence length")
     # Inference params
@@ -57,24 +37,6 @@ if __name__ == "__main__":
     # Task params
     parser.add_argument("--debug", action="store_true", help="Debug mode with more logging")
     args = parser.parse_args()
-
-    # prompt = (f'<|im_start|>system'
-    #     '<|im_end|>'
-    #     '<|im_start|>user'
-    #     f'Translate the following {args.slang} speech utterance into {args.tlang}:'
-    #     f'{args.slang}: <extra_id_0>'
-    #     f'{args.tlang}: <|im_end|>'
-    #     '<|im_start|>assistant'
-    # )
-
-    prompt = (f"Input:\n<extra_id_0>\nRepeat the above {args.slang} Input text:\n")
-
-    # prompt = (f'<|im_start|>user'
-    #     f'Translate to {args.tlang}:'
-    #     'a group of people are gathered in a public area</s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s></s>'
-    #     '<|im_end|>'
-    #     '<|im_start|>assistant'
-    # )
 
     # --------------------------------------------------
     # Logging
@@ -97,20 +59,32 @@ if __name__ == "__main__":
     device, dtype = get_device_dtype()
     logger.info(f"device: {device}, dtype: {dtype}")
 
+    prompt = (f"Input:\n<extra_id_0>\nRepeat the above {args.lang} Input text:\n")
+
+    # --------------------------------------------------
+    # Load model
+    # --------------------------------------------------
     t = time.time()
     model = AudioLLM(config=config, device=device, dtype=dtype, is_infer=True)
+    model.eval()
     logger.debug(f"Loading model took {time.time() - t:.2f} sec")
 
-    output = inference(
-        model, 
-        args.audio_path, 
-        prompt, 
-        max_new_tokens=args.max_new_tokens, 
-        temperature=args.temperature, 
-        top_p=args.top_p, 
-        no_repeat_ngram_size=args.no_repeat_ngram_size,
-        repetition_penalty=args.repetition_penalty
-    )
 
+    # --------------------------------------------------
+    # Inference
+    # --------------------------------------------------
+    t = time.time()
+    with torch.no_grad():
+        output = model.generate(
+            audio_paths=[args.audio_path],
+            prompt=prompt,
+            max_new_tokens=args.max_new_tokens,
+            temperature=args.temperature,
+            top_p=args.top_p,
+            no_repeat_ngram_size = args.no_repeat_ngram_size,
+            repetition_penalty = args.repetition_penalty, 
+        )
+
+    logger.debug(f"Generation took {time.time() - t:.2f} sec")
     logger.info(f"SRC: {args.audio_path}")
     logger.info(f"HYP: {output[0]}")
