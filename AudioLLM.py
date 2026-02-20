@@ -177,23 +177,23 @@ class AudioLLM(torch.nn.Module):
         if self.weights.get('ce', 0) > 0: # only txt is used
             loss += self.weights.get('ce', 0) * loss_ce_txt
 
-        # ----- Accuracy metric for pad predictions ---
-        logits_all = torch.matmul(proj_embs, self.llm.embedder.weight.t())
+        # # ----- Accuracy metric for pad predictions ---
+        # logits_all = torch.matmul(proj_embs, self.llm.embedder.weight.t())
 
-        # indices of the first predicted pad token in each sequence
-        first_pad_pos_pre = (logits_all.argmax(dim=-1) == pad_id).float().argmax(dim=1) # [B]
-        # indices of the first reference pad token in each sequence
-        first_pad_pos_ref = (target_ids == pad_id).float().argmax(dim=1) # [B]
-        # average distance between predicted and reference pad positions
-        pad_pos_distance = (first_pad_pos_pre - first_pad_pos_ref).abs().float().mean()
-        dout['dist_pad'] = pad_pos_distance.item()
+        # # indices of the first predicted pad token in each sequence
+        # first_pad_pos_pre = (logits_all.argmax(dim=-1) == pad_id).float().argmax(dim=1) # [B]
+        # # indices of the first reference pad token in each sequence
+        # first_pad_pos_ref = (target_ids == pad_id).float().argmax(dim=1) # [B]
+        # # average distance between predicted and reference pad positions
+        # pad_pos_distance = (first_pad_pos_pre - first_pad_pos_ref).abs().float().mean()
+        # dout['dist_pad'] = pad_pos_distance.item()
 
-        # accuracy of pad prediction over all tokens: percentage of tokens where the model correctly predicts whether it's a pad token or not, averaged over the batch
-        pred_pad_all = logits_all.argmax(dim=-1) == pad_id # [B, T], True where model predicts pad token
-        ref_pad_all = target_ids == pad_id # [B, T], True where reference has pad token
-        n_correct = (pred_pad_all == ref_pad_all).float().sum() # count correct predictions over all tokens
-        acc_pad_all = n_correct / ref_pad_all.numel() # normalize by total number of tokens (at least one pad token per sequence, so numel > 0)
-        dout['acc_pad'] = acc_pad_all.item()
+        # # accuracy of pad prediction over all tokens: percentage of tokens where the model correctly predicts whether it's a pad token or not, averaged over the batch
+        # pred_pad_all = logits_all.argmax(dim=-1) == pad_id # [B, T], True where model predicts pad token
+        # ref_pad_all = target_ids == pad_id # [B, T], True where reference has pad token
+        # n_correct = (pred_pad_all == ref_pad_all).float().sum() # count correct predictions over all tokens
+        # acc_pad_all = n_correct / ref_pad_all.numel() # normalize by total number of tokens (at least one pad token per sequence, so numel > 0)
+        # dout['acc_pad'] = acc_pad_all.item()
 
         # --- Cross-entropy loss over LLM output embeddings: handles token-level prediction at LLM output level (after generation) ---
         if self.weights.get('CE', 0) > 0:
