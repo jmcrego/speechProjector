@@ -298,13 +298,13 @@ class AudioLLM(torch.nn.Module):
         pad_id = self.llm.tokenizer.pad_token_id
         eos_id = self.llm.tokenizer.eos_token_id
         
-        input_embeds, _ = self.audio_embedder(audio_paths) # [B, T, D]
+        input_embeds, _ = self.audio_embedder(audio_paths) # [B, T_max, D_audio]
         if input_embeds.dim() != 3:
-            raise ValueError(f"Expected input_embeds to have 3 dimensions [B, T, D], got {input_embeds.shape}")
+            raise ValueError(f"Expected input_embeds to have 3 dimensions [B, T_max, D_audio], got {input_embeds.shape}")
  
         proj_embeds, _ = self.projector(input_embeds) # [B, S_max, D_llm]
         if proj_embeds.dim() != 3:
-            raise ValueError(f"Expected proj_embeds to have 3 dimensions [B, S_max, D], got {proj_embeds.shape}")
+            raise ValueError(f"Expected proj_embeds to have 3 dimensions [B, S_max, D_llm], got {proj_embeds.shape}")
 
         if proj_embeds.shape[2] != self.llm_embedding_dim:
             raise ValueError(f"Expected D={self.llm_embedding_dim}, got {proj_embeds.shape[2]}")

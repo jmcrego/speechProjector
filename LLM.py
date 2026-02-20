@@ -94,6 +94,14 @@ class LLM(torch.nn.Module):
                 "Full forward pass is unavailable."
             )
 
+    def generate(self, *args, **kwargs):
+        if hasattr(self, "model"):
+            return self.model.generate(*args, **kwargs)
+        else:
+            raise RuntimeError(
+                "LLM was loaded with load_only_embedding_layer=True. "
+                "Generation is unavailable."
+            )
 
     # -------------------------------------------------
     # Freezing logic
