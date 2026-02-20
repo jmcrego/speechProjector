@@ -175,7 +175,7 @@ class AudioLLM(torch.nn.Module):
         if self.weights.get('ce', 0) > 0: # only txt is used
             loss += self.weights.get('ce', 0) * loss_ce_txt
 
-        # ----- Accuracy metric for pad prediction: how well the model identifies <pad> token for the non-txt audio projected embeddings ---
+        # ----- Accuracy metric for pad predictions ---
         logits_all = torch.matmul(proj_embs, self.llm.embedder.weight.t())
 
         # indices of the first predicted pad token in each sequence
