@@ -190,7 +190,7 @@ class AudioLLM(torch.nn.Module):
         pred_pad_all = logits_all.argmax(dim=-1) == pad_id # [B, T], True where model predicts pad token
         ref_pad_all = target_ids == pad_id # [B, T], True where reference has pad token
         n_correct = (pred_pad_all == ref_pad_all).float().sum() # count correct predictions over all tokens
-        acc_pad_all = n_correct / ref_pad_all.numel()
+        acc_pad_all = n_correct / ref_pad_all.numel() # normalize by total number of tokens (at least one pad token per sequence, so numel > 0)
         dout['acc_pad'] = acc_pad_all.item()
 
         # --- Cross-entropy loss over LLM output embeddings: handles token-level prediction at LLM output level (after generation) ---
