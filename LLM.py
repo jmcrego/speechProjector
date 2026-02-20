@@ -94,6 +94,9 @@ class LLM(torch.nn.Module):
                 "Full forward pass is unavailable."
             )
 
+    # -------------------------------------------------
+    # Forward
+    # -------------------------------------------------
     def generate(self, *args, **kwargs):
         if hasattr(self, "model"):
             return self.model.generate(*args, **kwargs)
