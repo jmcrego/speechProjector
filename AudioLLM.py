@@ -271,69 +271,69 @@ class AudioLLM(torch.nn.Module):
 
     
 
-    # def generate(
-    #     self, 
-    #     audio_paths, 
-    #     prompt, 
-    #     max_new_tokens=256, 
-    #     temperature=0.7, 
-    #     top_p=0.95,
-    #     no_repeat_ngram_size = 0, #dangerous for ASR/STT, speech allow repetitions
-    #     repetition_penalty = 1.1, #good for ASR/STT, but bad for QA
-    # ):
-    #     """
-    #     Inference method: generates text given audio paths and prompt
-    #     Args:
-    #         audio_paths (List[str]): list of audio file paths
-    #         prompt (str): prompt text
-    #         max_new_tokens (int): maximum number of new tokens to generate
-    #         temperature (float): sampling temperature
-    #         top_p (float): top-p sampling parameter
-    #         no_repeat_ngram_size (int): no repeat ngram size
-    #         repetition_penalty (float): repetition penalty
+    def generate(
+        self, 
+        audio_paths, 
+        prompt, 
+        max_new_tokens=256, 
+        temperature=0.7, 
+        top_p=0.95,
+        no_repeat_ngram_size = 0, #dangerous for ASR/STT, speech allow repetitions
+        repetition_penalty = 1.1, #good for ASR/STT, but bad for QA
+    ):
+        """
+        Inference method: generates text given audio paths and prompt
+        Args:
+            audio_paths (List[str]): list of audio file paths
+            prompt (str): prompt text
+            max_new_tokens (int): maximum number of new tokens to generate
+            temperature (float): sampling temperature
+            top_p (float): top-p sampling parameter
+            no_repeat_ngram_size (int): no repeat ngram size
+            repetition_penalty (float): repetition penalty
 
-    #     Returns:
-    #         generated_texts (List[str]): list of generated texts
-    #     """
-    #     if '<extra_id_0>' not in prompt:        
-    #         prompt_ids = self.tokenizer(prompt, return_tensors="pt").input_ids.to(self.projector.linear.weight.device) # move to same device as projector for generation
+        Returns:
+            generated_texts (List[str]): list of generated texts
+        """
+        if '<extra_id_0>' not in prompt:        
+            prompt_ids = self.tokenizer(prompt, return_tensors="pt").input_ids.to(self.projector.linear.weight.device) # move to same device as projector for generation
 
-    #         outputs = self.llm.generate(
-    #             input_ids=prompt_ids,
-    #             max_new_tokens=max_new_tokens,
-    #             do_sample=(temperature > 0),
-    #             temperature=temperature if temperature > 0 else None,
-    #             top_p=top_p if temperature > 0 else None,
-    #             no_repeat_ngram_size = no_repeat_ngram_size,
-    #             repetition_penalty = repetition_penalty,
-    #             pad_token_id = self.tokenizer.pad_token_id,
-    #             eos_token_id = self.tokenizer.eos_token_id,
-    #             use_cache=True,
-    #             return_dict_in_generate=True,
-    #             output_scores=True,
-    #         )
-    #         return self.tokenizer.batch_decode(outputs.sequences, skip_special_tokens=False)
+            outputs = self.llm.generate(
+                input_ids=prompt_ids,
+                max_new_tokens=max_new_tokens,
+                do_sample=(temperature > 0),
+                temperature=temperature if temperature > 0 else None,
+                top_p=top_p if temperature > 0 else None,
+                no_repeat_ngram_size = no_repeat_ngram_size,
+                repetition_penalty = repetition_penalty,
+                pad_token_id = self.tokenizer.pad_token_id,
+                eos_token_id = self.tokenizer.eos_token_id,
+                use_cache=True,
+                return_dict_in_generate=True,
+                output_scores=True,
+            )
+            return self.tokenizer.batch_decode(outputs.sequences, skip_special_tokens=False)
 
-    #     prompt_ids = self.tokenizer(prompt, return_tensors="pt").input_ids #.to(self.projector.linear.weight.device) # move to same device as projector for generation
-    #     formatted_batch = self.format_batch(audio_paths, prompt_ids)
+        prompt_ids = self.tokenizer(prompt, return_tensors="pt").input_ids #.to(self.projector.linear.weight.device) # move to same device as projector for generation
+        formatted_batch = self.format_batch(audio_paths, prompt_ids)
 
-    #     outputs = self.llm.generate(
-    #         inputs_embeds=formatted_batch["inputs_embeds"],
-    #         attention_mask=formatted_batch["attention_mask"],
-    #         max_new_tokens=max_new_tokens,
-    #         do_sample=(temperature > 0),
-    #         temperature=temperature if temperature > 0 else None,
-    #         top_p=top_p if temperature > 0 else None,
-    #         no_repeat_ngram_size = no_repeat_ngram_size, 
-    #         repetition_penalty = repetition_penalty,
-    #         pad_token_id = self.tokenizer.pad_token_id,
-    #         eos_token_id = self.tokenizer.eos_token_id,
-    #         use_cache=True,
-    #         return_dict_in_generate=True,
-    #         output_scores=True,
-    #     )
+        outputs = self.llm.generate(
+            inputs_embeds=formatted_batch["inputs_embeds"],
+            attention_mask=formatted_batch["attention_mask"],
+            max_new_tokens=max_new_tokens,
+            do_sample=(temperature > 0),
+            temperature=temperature if temperature > 0 else None,
+            top_p=top_p if temperature > 0 else None,
+            no_repeat_ngram_size = no_repeat_ngram_size, 
+            repetition_penalty = repetition_penalty,
+            pad_token_id = self.tokenizer.pad_token_id,
+            eos_token_id = self.tokenizer.eos_token_id,
+            use_cache=True,
+            return_dict_in_generate=True,
+            output_scores=True,
+        )
 
-    #     return self.tokenizer.batch_decode(outputs.sequences, skip_special_tokens=False)
+        return self.tokenizer.batch_decode(outputs.sequences, skip_special_tokens=False)
 
     def read_cache_embs(self, pt_paths, offsets):
         """
