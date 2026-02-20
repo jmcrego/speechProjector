@@ -298,7 +298,7 @@ class AudioLLM(torch.nn.Module):
         pad_id = self.llm.tokenizer.pad_token_id
         eos_id = self.llm.tokenizer.eos_token_id
         
-        input_embeds = self.audio_embedder(audio_paths) # [B, T, D]
+        input_embeds, _ = self.audio_embedder(audio_paths) # [B, T, D]
         if input_embeds.dim() != 3:
             raise ValueError(f"Expected input_embeds to have 3 dimensions [B, T, D], got {input_embeds.shape}")
  
