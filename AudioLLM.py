@@ -185,7 +185,8 @@ class AudioLLM(torch.nn.Module):
             target_ids_llm[rows, first_pad_pos] = eos_id
 
             formatted_batch = self.format_batch(proj_embs, prompt_ids, target_ids=target_ids_llm)
-            outputs = self.llm.model(
+            # outputs = self.llm.model(
+            outputs = self.llm(
                 inputs_embeds=formatted_batch['inputs_embeds'],
                 attention_mask=formatted_batch['attention_mask'],
                 labels=formatted_batch['labels'],
