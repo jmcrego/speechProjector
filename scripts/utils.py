@@ -21,6 +21,8 @@ class JSONMetricsLogger:
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def log(self, **data):
+        # remove from data None entries to reduce log size and improve readability
+        data = {k: v for k, v in data.items() if v is not None}
         data["timestamp"] = datetime.now().isoformat(timespec="seconds")
         with self.path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(data, ensure_ascii=False) + "\n")
