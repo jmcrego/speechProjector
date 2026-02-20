@@ -62,7 +62,7 @@ if __name__ == "__main__":
     prompt = (f"Input:\n<extra_id_0>\nRepeat the above {args.lang} Input text:\n")
     prompt = (f"Input:\n<extra_id_0>\nTranslate the above {args.lang} Input text into French:\n")
     prompt = (f"Input:\n<extra_id_0>\nQuestion: Where are gathering the group of people of the above {args.lang} text? (write only the place)\nAnswer:\n")
-    prompt = (f"Input:\n<extra_id_0>\nQuestion: Is the above Input text written in German? (write only Yes or No)\nAnswer:\n")
+    prompt = (f"Input:\n<extra_id_0>\nQuestion: Is the above Input text written in German? (write only Yes or No)\nAnswer:")
 
     # --------------------------------------------------
     # Load model
