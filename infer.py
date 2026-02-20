@@ -67,12 +67,7 @@ if __name__ == "__main__":
     #     '<|im_start|>assistant'
     # )
 
-    prompt = (f'<|im_start|>user'
-        f'Translate to {args.tlang}:'
-        '<extra_id_0>'
-        '<|im_end|>'
-        '<|im_start|>assistant'
-    )
+    prompt = (f"Input:\n<extra_id_0>\nRepeat the above {args.slang} Input text:\n")
 
     # prompt = (f'<|im_start|>user'
     #     f'Translate to {args.tlang}:'
