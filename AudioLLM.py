@@ -175,6 +175,16 @@ class AudioLLM(torch.nn.Module):
         if self.weights.get('ce', 0) > 0: # only txt is used
             loss += self.weights.get('ce', 0) * loss_ce_txt
 
+        # ----- Accuracy metric for pad prediction: how well the model identifies <pad> token for the non-txt audio projected embeddings ---
+        pad_positions = pad_mask.bool()  # (B, T) # mask of true pad positions
+        pred_pad = logits_pad.argmax(dim=-1) == pad_id  # (B, T) # predicted pad positions
+        n_pad = pad_positions.sum().item() # number of pad tokens in reference
+        if n_pad > 0:
+            acc_pad = (pred_pad & pad_positions).sum().float() / n_pad # accuracy only over true pad tokens
+            dout['acc_pad'] = acc_pad.item()
+        else:
+            dout['acc_pad'] = 0.0  # no pad tokens exist in reference (should never happen)
+
         # --- Cross-entropy loss over LLM output embeddings: handles token-level prediction at LLM output level (after generation) ---
         if self.weights.get('CE', 0) > 0:
             # in target_ids sequences replace the left-most <pad> token by an <eos> token

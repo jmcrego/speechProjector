@@ -218,6 +218,8 @@ class Trainer:
                         accum['loss_mse_pad'] += outputs["loss_mse_pad"]
                     if outputs.get("loss_cos") is not None:
                         accum['loss_cos'] += outputs["loss_cos"]
+                    if outputs.get("acc_pad") is not None:
+                        accum['acc_pad'] += outputs["acc_pad"]
                     if outputs.get("loss_ce_txt") is not None:
                         accum['loss_ce_txt'] += outputs["loss_ce_txt"]
                     if outputs.get("loss_ce_pad") is not None:
@@ -322,6 +324,8 @@ class Trainer:
                 accum['loss_ce_txt'] += outputs["loss_ce_txt"]
             if outputs.get("loss_ce_pad") is not None:
                 accum['loss_ce_pad'] += outputs["loss_ce_pad"]
+            if outputs.get("acc_pad") is not None:
+                accum['acc_pad'] += outputs["acc_pad"]
             if outputs.get("loss_CE") is not None:
                 accum['loss_CE'] += outputs["loss_CE"]
             if outputs.get("loss_scale") is not None:
@@ -353,6 +357,7 @@ class Trainer:
         loss_mse_txt = accum['loss_mse_txt'] / max(1, accum['n_batchs']) if accum.get('loss_mse_txt') is not None else None
         loss_mse_pad = accum['loss_mse_pad'] / max(1, accum['n_batchs']) if accum.get('loss_mse_pad') is not None else None
         loss_cos = accum['loss_cos'] / max(1, accum['n_batchs']) if accum.get('loss_cos') is not None else None
+        acc_pad = accum['acc_pad'] / max(1, accum['n_batchs']) if accum.get('acc_pad') is not None else None
         loss_ce_txt = accum['loss_ce_txt'] / max(1, accum['n_batchs']) if accum.get('loss_ce_txt') is not None else None
         loss_ce_pad = accum['loss_ce_pad'] / max(1, accum['n_batchs']) if accum.get('loss_ce_pad') is not None else None
         loss_CE = accum['loss_CE'] / max(1, accum['n_batchs']) if accum.get('loss_CE') is not None else None
@@ -376,6 +381,7 @@ class Trainer:
         log_str += f"ℒ_ce_pad={loss_ce_pad:.5f} | " if loss_ce_pad is not None else ""
         log_str += f"ℒ_scale={loss_scale:.5f} | " if loss_scale is not None else ""
         log_str += f"ℒ_contrast={loss_contrast:.5f} | " if loss_contrast is not None else ""
+        log_str += f"acc_pad={acc_pad:.2f} | " if acc_pad is not None else ""
 
         log_str += f"lr_proj={self.optimizer.param_groups[0]['lr']:.3e} | "
 
@@ -387,7 +393,6 @@ class Trainer:
             log_str += f"scale={scale_val:.2f} | "
         if proj_grad_norm is not None:
             log_str += f"‖proj_grad‖={proj_grad_norm:.2f} | "
-        
         log_str += f"elapsed={h:02d}:{m:02d}:{s:02d}"
         logger.info(log_str)
 
@@ -402,6 +407,7 @@ class Trainer:
                 loss_CE=loss_CE,
                 loss_ce_txt=loss_ce_txt,
                 loss_ce_pad=loss_ce_pad,
+                acc_pad=acc_pad,
                 loss_contrast=loss_contrast,
                 loss_scale=loss_scale,
                 proj_norm=proj_norm, 
