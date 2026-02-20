@@ -60,6 +60,7 @@ if __name__ == "__main__":
     logger.info(f"device: {device}, dtype: {dtype}")
 
     prompt = (f"Input:\n<extra_id_0>\nRepeat the above {args.lang} Input text:\n")
+    prompt = (f"Input:\n<extra_id_0>\nTranslate the above {args.lang} Input text into French:\n")
 
     # --------------------------------------------------
     # Load model
