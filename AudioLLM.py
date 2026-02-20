@@ -330,7 +330,7 @@ class AudioLLM(torch.nn.Module):
             output_scores=True,
         )
 
-        return self.tokenizer.batch_decode(outputs.sequences, skip_special_tokens=False)
+        return self.llm.tokenizer.batch_decode(outputs.sequences, skip_special_tokens=False)
 
     def read_cache_embs(self, pt_paths, offsets):
         """
