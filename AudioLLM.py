@@ -168,14 +168,14 @@ class AudioLLM(torch.nn.Module):
             loss += self.weights.get('scale', 0) * loss_scale
 
         # --- Cross-entropy loss: handles token-level embedding prediction ---
-        logits_txt = torch.matmul(proj_embs[txt_mask], self.llm.embedder.weight.t()) / self.weights.get('temp_ce', 1.0) # logits: [N_txt, D] x [D, V] -> [N_txt, V]
-        loss_ce_txt = F.cross_entropy(logits_txt, target_ids[txt_mask], reduction="mean")
-        dout['loss_ce_txt'] = loss_ce_txt.item()
-        logits_pad = torch.matmul(proj_embs[pad_mask], self.llm.embedder.weight.t()) / self.weights.get('temp_ce', 1.0) # logits: [N_pad, D] x [D, V] -> [N_pad, V]
-        loss_ce_pad = F.cross_entropy(logits_pad, target_ids[pad_mask], reduction="mean")
-        dout['loss_ce_pad'] = loss_ce_pad.item()
-        if self.weights.get('ce', 0) > 0: # only txt is used
-            loss += self.weights.get('ce', 0) * loss_ce_txt
+        # logits_txt = torch.matmul(proj_embs[txt_mask], self.llm.embedder.weight.t()) / self.weights.get('temp_ce', 1.0) # logits: [N_txt, D] x [D, V] -> [N_txt, V]
+        # loss_ce_txt = F.cross_entropy(logits_txt, target_ids[txt_mask], reduction="mean")
+        # dout['loss_ce_txt'] = loss_ce_txt.item()
+        # logits_pad = torch.matmul(proj_embs[pad_mask], self.llm.embedder.weight.t()) / self.weights.get('temp_ce', 1.0) # logits: [N_pad, D] x [D, V] -> [N_pad, V]
+        # loss_ce_pad = F.cross_entropy(logits_pad, target_ids[pad_mask], reduction="mean")
+        # dout['loss_ce_pad'] = loss_ce_pad.item()
+        # if self.weights.get('ce', 0) > 0: # only txt is used
+        #     loss += self.weights.get('ce', 0) * loss_ce_txt
 
         # # ----- Accuracy metric for pad predictions ---
         # logits_all = torch.matmul(proj_embs, self.llm.embedder.weight.t())
