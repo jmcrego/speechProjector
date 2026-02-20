@@ -184,7 +184,7 @@ class AudioLLM(torch.nn.Module):
         first_pad_pos_ref = (target_ids == pad_id).float().argmax(dim=1) # [B]
         # average distance between predicted and reference pad positions
         pad_pos_distance = (first_pad_pos_pre - first_pad_pos_ref).abs().float().mean()
-        dout['pos_pad'] = pad_pos_distance.item()
+        dout['dist_pad'] = pad_pos_distance.item()
 
         # accuracy of pad prediction over all tokens: percentage of tokens where the model correctly predicts whether it's a pad token or not, averaged over the batch
         pred_pad_all = logits_all.argmax(dim=-1) == pad_id # [B, T], True where model predicts pad token
