@@ -61,7 +61,7 @@ if __name__ == "__main__":
 
     prompt = (f"Input:\n<extra_id_0>\nRepeat the above {args.lang} Input text:\n")
     prompt = (f"Input:\n<extra_id_0>\nTranslate the above {args.lang} Input text into French:\n")
-    prompt = (f"Input:\n<extra_id_0>\nTranslate the above {args.lang} Input text into French and into Spanish:\n")
+    prompt = (f"Input:\n<extra_id_0>\nWhere are gathering the group of people?:\n")
 
     # --------------------------------------------------
     # Load model
@@ -89,4 +89,5 @@ if __name__ == "__main__":
 
     logger.debug(f"Generation took {time.time() - t:.2f} sec")
     logger.info(f"SRC: {args.audio_path}")
+    logger.info(f"PROMPT: {prompt}")
     logger.info(f"HYP: {output[0]}")
