@@ -66,7 +66,6 @@ if __name__ == "__main__":
     # --------------------------------------------------
     t = time.time()
     model = AudioLLM(config=config, device=device, dtype=dtype, is_infer=True)
-    model.eval()
     logger.debug(f"Loading model took {time.time() - t:.2f} sec")
 
 
@@ -74,6 +73,7 @@ if __name__ == "__main__":
     # Inference
     # --------------------------------------------------
     t = time.time()
+    model.eval()
     with torch.no_grad():
         output = model.generate(
             audio_paths=[args.audio_path],
