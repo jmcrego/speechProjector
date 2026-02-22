@@ -32,7 +32,8 @@ if __name__ == "__main__":
     parser.add_argument("--lr_proj", type=float, default=1e-4, help="Learning rate for projector (the only part we train)")
     parser.add_argument("--num_warmup_steps", type=int, default=5000, help="Number of warmup steps for learning rate scheduler (use ~10% of total steps)")
     parser.add_argument("--num_training_steps", type=int, default=50000, help="Number of training steps for learning rate scheduler")
-    parser.add_argument("--max_epochs", type=int, default=0, help="Limit training to this many epochs (0 for no limit)")
+    parser.add_argument("--max_steps", type=int, default=0, help="Limit training to this many steps")
+    parser.add_argument("--max_epochs", type=int, default=0, help="Limit training to this many epochs")
     parser.add_argument("--alpha", type=float, default=0.5, help="MSE loss = alpha * MSE_txt + (1 - alpha) * MSE_pad")
     parser.add_argument("--weight_mse", type=float, default=0., help="Weight of MSE loss (0 to disable it)")
     parser.add_argument("--weight_cos", type=float, default=0., help="Weight of cosine loss (0 to disable it)")
@@ -62,9 +63,6 @@ if __name__ == "__main__":
     assert args.weight_contrast >= 0, "Weight contrast must be >= 0"
     assert args.weight_CE >= 0, "Weight CE must be >= 0"
     assert args.weight_mse > 0 or args.weight_cos > 0 or args.weight_scale > 0 or args.weight_ce > 0 or args.weight_contrast > 0 or args.weight_CE > 0, "At least one loss must have weight > 0"
-
-    # if args.num_training_steps == 0 and args.max_epochs == 0:
-    #     raise ValueError("At least one of num_training_steps or max_epochs must be > 0 to define a stopping criterion for training")
 
     weights = {
         'alpha': args.alpha,
@@ -149,6 +147,7 @@ if __name__ == "__main__":
         lr_proj=args.lr_proj,
         num_warmup_steps=args.num_warmup_steps,
         num_training_steps=args.num_training_steps,
+        max_steps=args.max_steps,
         max_epochs=args.max_epochs,
         save_best_n=args.save_best_n,
         eval_every=args.eval_every,
