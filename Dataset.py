@@ -174,11 +174,12 @@ class Dataset(Dataset):
                 for line in tqdm(f, desc=f"Reading {f_jsonl}", unit=" lines"):
                     entry = json.loads(line)
                     lang = entry.get("slang", "English")
+                    prompt = (f"Input:\n{audio_token}\nRepeat the above {lang} Input text (write in {lang}):\n")
                     sample = {
                         "pt_path": entry["pt_path"] if Path(entry["pt_path"]).is_absolute() else Path(f_jsonl).parent / entry["pt_path"],
                         "offset": entry["offset"],
                         "target": entry["text"],
-                        "prompt": f"Input:\n{audio_token}\nRepeat the above {lang} Input text:\n"
+                        "prompt": prompt
                     }
                     curr_samples.append(sample)
                 if n_samples > 0 and n_samples < len(curr_samples):

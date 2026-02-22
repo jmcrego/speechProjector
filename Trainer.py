@@ -34,8 +34,9 @@ class Trainer:
         eval_dataset=None,
         batch_size=4,
         lr_proj=1e-4,
-        warmup_steps=1000,
-        max_steps=10000,
+        num_warmup_steps=5000,
+        num_training_steps=50000,
+        max_steps=0,
         max_epochs=10,
         save_best_n=3,
         eval_every=1000,
@@ -58,6 +59,7 @@ class Trainer:
         self.eval_dataset = eval_dataset
         self.batch_size = batch_size
         self.max_steps = max_steps
+        self.max_epochs = max_epochs
         self.save_best_n = save_best_n
         self.eval_every = eval_every
         self.log_every = log_every
@@ -82,11 +84,13 @@ class Trainer:
         self.train_loader = DataLoader(train_dataset, batch_sampler=self.train_sampler, collate_fn=collator)
         logger.info(f"Initialized Sampler and DataLoader for train with batch_size={batch_size} with {len(self.train_dataset)} samples, {len(self.train_loader)} batches")
 
-        if max_epochs > 0 and max_steps == 0:
+        if self.max_steps == 0:
+            self.max_steps = num_training_steps
+
+        if self.max_epochs > 0:
             num_batches_per_epoch = len(self.train_loader) 
-            num_steps_per_epoch = num_batches_per_epoch // accum_steps
-            self.max_steps = max_epochs * num_steps_per_epoch
-            logger.info(f"Calculated max_steps={self.max_steps} based on max_epochs={max_epochs} with accum_steps={accum_steps}: num_batches_per_epoch={num_batches_per_epoch}, num_steps_per_epoch={num_steps_per_epoch}")
+            num_steps_per_epoch = num_batches_per_epoch // self.accum_steps
+            self.max_steps = max(self.max_epochs * num_steps_per_epoch, self.max_steps)
 
         self.eval_sampler = BatchedBucketSampler(eval_dataset, batch_size=batch_size, shuffle=False)
         self.eval_loader = DataLoader(eval_dataset, batch_sampler=self.eval_sampler, collate_fn=collator)
@@ -99,9 +103,8 @@ class Trainer:
         self.optimizer = torch.optim.AdamW([{"params": self.model.projector.parameters(), "lr": lr_proj}])
         logger.info(f"Initialized AdamW optimizer with lr_proj={lr_proj}")
 
-        # warmup_steps = config['optim']['warmup_steps']
-        self.scheduler = get_cosine_schedule_with_warmup(self.optimizer, num_warmup_steps=warmup_steps, num_training_steps=self.max_steps)
-        logger.info(f"Initialized Cosine scheduler with warmup. {self.max_steps} steps, ({warmup_steps}) warmup steps)")
+        self.scheduler = get_cosine_schedule_with_warmup(self.optimizer, num_warmup_steps=num_warmup_steps, num_training_steps=num_training_steps)
+        logger.info(f"Initialized Cosine scheduler with warmup. {num_training_steps} steps, ({num_warmup_steps}) warmup steps)")
 
         self.step = 0
 
@@ -118,12 +121,9 @@ class Trainer:
 
             if self.step > 0:
                 # Recreate scheduler with correct number of total steps and warmup steps, and set to the correct step
-                self.scheduler = get_cosine_schedule_with_warmup(
-                    self.optimizer,
-                    num_warmup_steps=warmup_steps,
-                    num_training_steps=self.max_steps,  # may be a new value if we changed max_steps in the config
-                    last_epoch=self.step - 1 # indicate to scheduler that self.step steps have already been taken (so it can set the correct learning rate)
-                )
+                self.scheduler = get_cosine_schedule_with_warmup(self.optimizer, num_warmup_steps=num_warmup_steps, num_training_steps=num_training_steps, last_epoch=self.step - 1)
+                # num_training_steps may be a new value if we changed num_training_steps in the config
+                # last_epoch indicate to scheduler that self.step steps have already been taken (so it can set the correct learning rate)
 
             logger.info(f"Resume training from {config}")
             logger.info(f"Loaded optimizer/scheduler/step={self.step}")
@@ -132,20 +132,6 @@ class Trainer:
         # self.epoch = 0 # number of epochs completed
         self.sample = 0 # number of samples processed
         self.start_time = datetime.now()
-
-
-
-    # -----------------------------
-    # Seed everything
-    # -----------------------------
-    @staticmethod
-    def seed_everything(seed=42):
-        random.seed(seed)
-        np.random.seed(seed)
-        torch.manual_seed(seed)
-        torch.cuda.manual_seed_all(seed)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
 
     # -----------------------------
     # Save checkpoint
@@ -346,6 +332,18 @@ class Trainer:
 
         self.model.train()
 
+
+    # -----------------------------
+    # Seed everything
+    # -----------------------------
+    @staticmethod
+    def seed_everything(seed=42):
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
     # -----------------------------
     # Logging 
