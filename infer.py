@@ -59,8 +59,8 @@ if __name__ == "__main__":
     device, dtype = get_device_dtype()
     logger.info(f"device: {device}, dtype: {dtype}")
 
-    prompt = (f"Input:\n<extra_id_0>\nRepeat the above {args.lang} Input text (write in {args.lang}):\n")
-#    prompt = (f"Input:\n<extra_id_0>\nTranslate the above {args.lang} Input text into French:\n")
+#    prompt = (f"Input:\n<extra_id_0>\nRepeat the above {args.lang} Input text (write in {args.lang}):\n")
+    prompt = (f"Input:\n<extra_id_0>\nTranslate the above {args.lang} Input text into French:\n")
 #    prompt = (f"Input:\n<extra_id_0>\nQuestion: Is the above Input text written in German? (write only Yes or No)\nAnswer:")
 
     # --------------------------------------------------
