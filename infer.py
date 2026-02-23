@@ -25,9 +25,12 @@ if __name__ == "__main__":
     )
     parser.add_argument("--config", type=str, required=True, help="Model config file")
     parser.add_argument("--audio_path", type=str, required=True, help="Audio file/s")
-    parser.add_argument("--lang", type=str, required=True, help="Audio language")
-    # parser.add_argument("--batch_size", type=int, default=1, help="Batch size")
-    # parser.add_argument("--max_seq_len", type=int, default=1024, help="Maximum sequence length")
+    parser.add_argument(
+        "--prompt", 
+        type = str, 
+        default = "Input:<CR><extra_id_0><CR>Translate the above English Input text into Spanish:<CR>", 
+        help = "Prompt to use for generation (use <extra_id_0> as placeholder for audio input, <slang> for source language, <tlang> for target language, <CR> for newlines)"
+    )
     # Inference params
     parser.add_argument("--max_new_tokens", type=int, default=256, help="Maximum number of output tokens to generate")
     parser.add_argument("--temperature", type=float, default=0.7, help="Sampling temperature for generation")
@@ -59,8 +62,10 @@ if __name__ == "__main__":
     device, dtype = get_device_dtype()
     logger.info(f"device: {device}, dtype: {dtype}")
 
+    prompt = args.prompt.replace("<CR>", "\n")
+
 #    prompt = (f"Input:\n<extra_id_0>\nRepeat the above {args.lang} Input text (write in {args.lang}):\n")
-    prompt = (f"Input:\n<extra_id_0>\nTranslate the above {args.lang} Input text into French:\n")
+#    prompt = (f"Input:\n<extra_id_0>\nTranslate the above {args.lang} Input text into French:\n")
 #    prompt = (f"Input:\n<extra_id_0>\nQuestion: Is the above Input text written in German? (write only Yes or No)\nAnswer:")
 
     # --------------------------------------------------
